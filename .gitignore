@@ -131,3 +131,5 @@ dmypy.json
 LiteralKG/*
 runs/*
 *.pickle
+
+trained_model/*
