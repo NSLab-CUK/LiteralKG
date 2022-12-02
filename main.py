@@ -44,7 +44,7 @@ def evaluate(model, dataloader, Ks, device):
 
             with torch.no_grad():
                 # (n_batch_heads, n_tails)
-                batch_scores = model(batch_head_ids, tail_ids, mode='predict')
+                batch_scores = model(batch_head_ids, tail_ids, device=device, mode='predict')
 
             batch_scores = batch_scores.cpu()
 
@@ -64,9 +64,6 @@ def evaluate(model, dataloader, Ks, device):
             metrics_dict[k][m] = np.concatenate(metrics_dict[k][m]).mean()
     return prediction_scores, metrics_dict
 
-def seperate_train_data(dataset):
-    return dataset
-
 def train(args):
     # seed
     random.seed(args.seed)
@@ -81,10 +78,11 @@ def train(args):
 
     # GPU / CPU
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = args.device
+    device = torch.device(args.device)
 
     # load data
     data = DataLoader(args, logging)
+    torch.cuda.empty_cache()
 
     # construct model & optimizer
     model = LiteralKG(args, data.n_entities,
@@ -92,13 +90,6 @@ def train(args):
 
     if args.use_pretrain == 2:
         model = load_model(model, args.pretrain_model_path)
-
-    if args.use_parallel_gpu:
-        os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
-        model = nn.DataParallel(model, output_device=1)
-    else:
-        print("Device {}".format(device))
-        model.to(device)
 
     logging.info(model)
     torch.autograd.set_detect_anomaly(True)
@@ -115,17 +106,25 @@ def train(args):
 
     pt_loss_list, pt_time_training = pre_training_train(model, data, pre_training_optimizer, device, args, writer)
 
+    device="cuda:3"
+
     ft_loss_list, ft_time_training = fine_tuning_train(model, data, fine_tuning_optimizer, device, args, writer)
 
-    logging.info("FINALLL -------")
-    # Logging every epoch
+    logging.info("FINALLY -------")
     logging.info("Pre-training loss list {}".format(pt_loss_list))
     logging.info("Pre training time training {}".format(pt_time_training))
     logging.info("Fine tuning loss list {}".format(ft_loss_list))
     logging.info("Fine tuning time training {}".format(ft_time_training))
 
 def pre_training_train(model, data, optimizer, device, args, writer):
-        # initialize metrics
+    logging.info("-----Pre-training model-----")
+    if args.use_parallel_gpu:
+        model = nn.DataParallel(model, device_ids=[2, 3])
+        model.to(device)
+    else:
+        print("Device {}".format(device))
+        model.to(device)
+    # initialize metrics
     best_epoch = -1
 
     # train
@@ -159,7 +158,7 @@ def pre_training_train(model, data, optimizer, device, args, writer):
             
             optimizer.zero_grad()
             kg_batch_loss = model(kg_batch_head, kg_batch_relation,
-                                  kg_batch_pos_tail, kg_batch_neg_tail, mode='pre_training')
+                                  kg_batch_pos_tail, kg_batch_neg_tail, device=device, mode='pre_training')
 
             if np.isnan(kg_batch_loss.cpu().detach().numpy()):
                 logging.info(
@@ -185,7 +184,7 @@ def pre_training_train(model, data, optimizer, device, args, writer):
         t_list = data.t_list.to(device)
         r_list = data.r_list.to(device)
         relations = list(data.laplacian_dict.keys())
-        model(h_list, t_list, r_list, relations, mode='update_att')
+        model(h_list, t_list, r_list, relations, device=device, mode='update_att')
         logging.info('Update Attention: Epoch {:04d} | Total Time {:.1f}s'.format(
             epoch, time() - time2))
 
@@ -213,6 +212,13 @@ def pre_training_train(model, data, optimizer, device, args, writer):
     return pt_loss_list, pt_time_training
 
 def fine_tuning_train(model, data, optimizer, device, args, writer):
+    logging.info("-----Fine-turning model-----")
+    if args.use_parallel_gpu:
+        model = nn.DataParallel(model, device_ids=[2, 3])
+        model.to(device)
+    else:
+        print("Device {}".format(device))
+        model.to(device)
     # initialize metrics
     best_epoch = -1
     best_recall = 0
@@ -239,7 +245,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         prediction_total_loss = 0
         n_prediction_batch = data.n_prediction_training // data.fine_tuning_batch_size + 1
 
-        for iter in range(1, n_prediction_batch + 1):
+        for iter in tqdm(range(1, n_prediction_batch + 1), desc=f"EP:{epoch}_train"):
             time1 = time()
             prediction_batch_head, prediction_batch_pos_tail, prediction_batch_neg_tail = data.generate_prediction_batch(
                 data.train_head_dict, data.fine_tuning_batch_size)
@@ -248,7 +254,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
             prediction_batch_neg_tail = prediction_batch_neg_tail.to(device)
 
             prediction_batch_loss = model(
-                prediction_batch_head, prediction_batch_pos_tail, prediction_batch_neg_tail, mode='fine_tuning')
+                prediction_batch_head, prediction_batch_pos_tail, prediction_batch_neg_tail, device=device, mode='fine_tuning')
 
             if np.isnan(prediction_batch_loss.cpu().detach().numpy()):
                 logging.info(
@@ -311,9 +317,14 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
                 logging.info('Save model on epoch {:04d}!'.format(epoch))
                 best_epoch = epoch
 
+            print("Evaluate")
+            print(metrics_dict)
+
         # Logging every epoch
         logging.info("Fine tuning loss list {}".format(ft_loss_list))
         logging.info("Fine tuning time {}".format(ft_time_training))
+
+
 
 
     # save metrics

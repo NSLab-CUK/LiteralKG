@@ -1,9 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from gate import Gate
-from torch.autograd import Variable
-import numpy as np
+from gate import Gate, GateMul
 import math
 import time
 
@@ -117,6 +115,9 @@ class LiteralKG(nn.Module):
 
         super(LiteralKG, self).__init__()
         self.use_pretrain = args.use_pretrain
+        self.args = args
+
+        self.device = args.device
 
         self.n_entities = n_entities
         self.n_relations = n_relations
@@ -170,10 +171,13 @@ class LiteralKG(nn.Module):
         self.numerical_literals_embed = numerical_literals
         self.text_literals_embed = text_literals
 
-
-
         # LiteralE's g
-        self.emb_lit = Gate(self.embed_dim, self.n_num_lit, self.n_txt_lit)
+        if self.args.use_num_lit and self.args.use_txt_lit:
+            self.emb_mul_lit = GateMul(self.embed_dim, self.n_num_lit, self.n_txt_lit)
+        elif self.args.use_num_lit:
+            self.emb_num_lit = Gate(self.embed_dim, self.n_num_lit)
+        elif self.args.use_txt_lit:
+            self.emb_txt_lit = Gate(self.embed_dim, self.n_txt_lit)
 
         for k in range(self.n_layers):
             self.aggregator_layers.append(
@@ -188,14 +192,33 @@ class LiteralKG(nn.Module):
 
     def gate_embeddings(self):
         ent_emb = self.entity_embed.weight
+        self.numerical_literals_embed = self.numerical_literals_embed.to(self.device)
+        self.text_literals_embed = self.text_literals_embed.to(self.device)
 
-        # Literal embedding
-        num_embed = self.numerical_literals_embed
-        txt_embed = self.text_literals_embed
+        if self.args.use_num_lit and self.args.use_txt_lit:
+            return self.emb_mul_lit(ent_emb, self.numerical_literals_embed, self.text_literals_embed)
+        elif self.args.use_num_lit:
+            return self.emb_num_lit(ent_emb, self.numerical_literals_embed)
+        elif self.args.use_txt_lit:
+            return self.emb_txt_lit(ent_emb, self.text_literals_embed)
+        return ent_emb
 
-        ent_lit_emb = self.emb_lit(ent_emb, num_embed, txt_embed)
+    def gate_embeddings_v2(self, e):
+        ent_emb = self.entity_embed.weight
 
-        return ent_lit_emb
+        ent_emb = ent_emb[e]
+
+        if self.args.use_num_lit and self.args.use_txt_lit:
+            num_emb = self.numerical_literals_embed[e]
+            txt_emb = self.text_literals_embed[e]
+            return self.emb_mul_lit(ent_emb, num_emb, txt_emb)
+        elif self.args.use_num_lit:
+            num_emb = self.numerical_literals_embed[e]
+            return self.emb_num_lit(ent_emb, num_emb)
+        elif self.args.use_txt_lit:
+            txt_emb = self.text_literals_embed[e]
+            return self.emb_txt_lit(ent_emb, txt_emb)
+        return ent_emb
 
     def gat_embeddings(self):
         ent_lit_mul_r = self.gate_embeddings()
@@ -207,10 +230,8 @@ class LiteralKG(nn.Module):
             norm_embed = F.normalize(ent_lit_mul_r, p=2, dim=1)
             all_embed.append(norm_embed)
 
-        # Equation (11)
         # (n_heads + n_tails, concat_dim)
-        all_embed = torch.cat(all_embed, dim=1)
-        return all_embed
+        return torch.cat(all_embed, dim=1)
 
     def calculate_prediction_loss(self, head_ids, tail_pos_ids, tail_neg_ids):
         """
@@ -224,13 +245,15 @@ class LiteralKG(nn.Module):
         tail_pos_embed = all_embed[tail_pos_ids]  # (batch_size, concat_dim)
         tail_neg_embed = all_embed[tail_neg_ids]  # (batch_size, concat_dim)
 
-        # Equation (12)
+        # head_embed = self.gat_embeddings(head_ids)  # (batch_size, concat_dim)
+        # tail_pos_embed = self.gat_embeddings(tail_pos_ids)  # (batch_size, concat_dim)
+        # tail_neg_embed =self.gat_embeddings(tail_neg_ids)  # (batch_size, concat_dim)
+
         pos_score = torch.sum(head_embed * tail_pos_embed,
                               dim=1)  # (batch_size)
         neg_score = torch.sum(head_embed * tail_neg_embed,
                               dim=1)  # (batch_size)
 
-        # Equation (13)
         # prediction_loss = F.softplus(neg_score - pos_score)
         prediction_loss = (-1.0) * F.logsigmoid(pos_score - neg_score)
         prediction_loss = torch.mean(prediction_loss)
@@ -275,6 +298,10 @@ class LiteralKG(nn.Module):
         head_embed = all_embed[h]  # (batch_size, concat_dim)
         tail_pos_embed = all_embed[pos_t]  # (batch_size, concat_dim)
         tail_neg_embed = all_embed[neg_t]  # (batch_size, concat_dim)
+
+        # head_embed = self.gat_embeddings(h)  # (batch_size, concat_dim)
+        # tail_pos_embed = self.gat_embeddings(pos_t)  # (batch_size, concat_dim)
+        # tail_neg_embed = self.gat_embeddings(neg_t)  # (batch_size, concat_dim)
 
         r_mul_h = torch.bmm(head_embed.unsqueeze(1), W_r).squeeze(
             1)  # (kg_batch_size, relation_dim)
@@ -355,7 +382,6 @@ class LiteralKG(nn.Module):
         shape = self.A_in.shape
         A_in = torch.sparse.FloatTensor(indices, values, torch.Size(shape))
 
-        # Equation (5)
         A_in = torch.sparse.softmax(A_in.cpu(), dim=1)
         self.A_in.data = A_in.to(device)
 
@@ -364,13 +390,16 @@ class LiteralKG(nn.Module):
         head_embed = all_embed[head_ids]  # (n_heads, concat_dim)
         tail_embed = all_embed[tail_ids]  # (n_items, concat_dim)
 
-        # Equation (12)
+        # head_embed = self.gat_embeddings(head_ids)  # (n_heads, concat_dim)
+        # tail_embed = self.gat_embeddings(tail_ids)  # (n_items, concat_dim)
+
         prediction_score = torch.matmul(
             head_embed, tail_embed.transpose(0, 1))  # (n_heads, n_items)
 
         return prediction_score
 
-    def forward(self, *input, mode):
+    def forward(self, *input, device, mode):
+        self.device=device
         if mode == 'fine_tuning':
             return self.calculate_prediction_loss(*input)
         if mode == 'pre_training':

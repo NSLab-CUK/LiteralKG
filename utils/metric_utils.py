@@ -126,6 +126,9 @@ def calc_metrics_at_k(prediction_scores, train_head_dict, test_head_dict, head_i
         [len(head_ids), len(tail_ids)], dtype=np.float32)
 
     for idx, h_id in enumerate(head_ids):
+        train_pos_tail_list = []
+        test_pos_tail_list = []
+
         if h_id in train_head_dict:
             train_pos_tail_list = train_head_dict[h_id]
         if h_id in test_head_dict:
@@ -133,7 +136,6 @@ def calc_metrics_at_k(prediction_scores, train_head_dict, test_head_dict, head_i
 
         prediction_scores[idx][[tail_ids.index(x) for x in train_pos_tail_list]] = -np.inf
         test_pos_item_binary[idx][[tail_ids.index(x) for x in test_pos_tail_list]] = 1
-
 
     try:
         # try to speed up the sorting process
