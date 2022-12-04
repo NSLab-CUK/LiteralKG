@@ -1,6 +1,10 @@
 import torch
 import numpy as np
 from sklearn.metrics import roc_auc_score, log_loss
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import f1_score
 
 
 def calc_recall(rank, ground_truth, k):
@@ -125,6 +129,12 @@ def calc_metrics_at_k(prediction_scores, train_head_dict, test_head_dict, head_i
     test_pos_item_binary = np.zeros(
         [len(head_ids), len(tail_ids)], dtype=np.float32)
 
+    print(prediction_scores[0])
+    print(tail_ids)
+    print(test_head_dict)
+
+    print(prediction_scores[1])
+
     for idx, h_id in enumerate(head_ids):
         train_pos_tail_list = []
         test_pos_tail_list = []
@@ -156,4 +166,39 @@ def calc_metrics_at_k(prediction_scores, train_head_dict, test_head_dict, head_i
         metrics_dict[k] = {}
         metrics_dict[k]['precision'] = precision_at_k_batch(binary_hit, k)
         metrics_dict[k]['recall'] = recall_at_k_batch(binary_hit, k)
+    return metrics_dict
+
+def calc_metrics(predicted_trust, test_head_dict, head_ids, tail_ids):
+    """
+    prediction_scores: (n_heads, n_tails)
+    """
+    tail_ids = list(tail_ids)
+    ground_trusted = np.zeros(
+        [len(head_ids), len(tail_ids)], dtype=np.float32)
+
+    for idx, h_id in enumerate(head_ids):
+        test_pos_tail_list = []
+
+        if h_id in test_head_dict:
+            test_pos_tail_list = test_head_dict[h_id]
+
+        ground_trusted[idx][[tail_ids.index(x) for x in test_pos_tail_list]] = 1
+
+    metrics_dict = {}
+    # accuracy: (tp + tn) / (p + n)
+    accuracy = accuracy_score(y_pred=predicted_trust, y_true=ground_trusted)
+    metrics_dict['accuracy'] = accuracy
+    print('Accuracy: %f' % accuracy)
+    # precision tp / (tp + fp)
+    precision = precision_score(y_pred=predicted_trust, y_true=ground_trusted, average='weighted')
+    metrics_dict['precision'] = precision
+    print('Precision: %f' % precision)
+    # recall: tp / (tp + fn)
+    recall = recall_score(y_pred=predicted_trust, y_true=ground_trusted, average='weighted')
+    metrics_dict['recall'] = recall
+    print('Recall: %f' % recall)
+    # f1: 2 tp / (2 tp + fp + fn)
+    f1 = f1_score(y_pred=predicted_trust, y_true=ground_trusted, average='weighted')
+    metrics_dict['f1'] = f1
+    print('F1 score: %f' % f1)
     return metrics_dict

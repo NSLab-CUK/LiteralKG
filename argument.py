@@ -8,7 +8,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=2022,
                         help='Random seed.')
 
-    parser.add_argument('--data_name', nargs='?', default='Small',
+    parser.add_argument('--data_name', nargs='?', default='Test',
                         help='Choose a dataset')
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
@@ -70,6 +70,9 @@ def parse_args():
     parser.add_argument('--stopping_steps', type=int, default=10,
                         help='Number of epoch for early stopping')
 
+    parser.add_argument('--milestone_score', type=float, default=2.0,
+                        help='The condition of link score.')
+
     parser.add_argument('--fine_tuning_print_every', type=int, default=500,
                         help='Iter interval of printing Fine Tuning loss.')
     parser.add_argument('--kg_print_every', type=int, default=500,
@@ -86,7 +89,7 @@ def parse_args():
                         help='The fine tuning negative rate.')
 
 
-    parser.add_argument('--device', nargs='?', default='cuda:2',
+    parser.add_argument('--device', nargs='?', default='cuda:0',
                         help='Choose a device to run')
     parser.add_argument('--prediction_dict_file', nargs='?', default='disease_dict.pickle',
                         help='Disease dictionary file')

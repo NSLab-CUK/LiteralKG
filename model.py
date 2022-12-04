@@ -190,6 +190,8 @@ class LiteralKG(nn.Module):
             self.A_in.data = A_in
         self.A_in.requires_grad = False
 
+        self.milestone_score = args.milestone_score
+
     def gate_embeddings(self):
         ent_emb = self.entity_embed.weight
         self.numerical_literals_embed = self.numerical_literals_embed.to(self.device)
@@ -251,8 +253,11 @@ class LiteralKG(nn.Module):
 
         pos_score = torch.sum(head_embed * tail_pos_embed,
                               dim=1)  # (batch_size)
+        print("Conpare pos_score neg_score")
+        print(pos_score)
         neg_score = torch.sum(head_embed * tail_neg_embed,
                               dim=1)  # (batch_size)
+        print(neg_score)
 
         # prediction_loss = F.softplus(neg_score - pos_score)
         prediction_loss = (-1.0) * F.logsigmoid(pos_score - neg_score)
@@ -398,6 +403,11 @@ class LiteralKG(nn.Module):
 
         return prediction_score
 
+    def predict_links(self, head_ids, tail_ids):
+        scores = self.calc_score(head_ids, tail_ids)
+
+        return (scores>self.milestone_score).int()
+
     def forward(self, *input, device, mode):
         self.device=device
         if mode == 'fine_tuning':
@@ -407,4 +417,4 @@ class LiteralKG(nn.Module):
         if mode == 'update_att':
             return self.update_attention(*input)
         if mode == 'predict':
-            return self.calc_score(*input)
+            return self.predict_links(*input)

@@ -19,7 +19,7 @@ from utils.metric_utils import *
 from utils.model_utils import *
 
 
-def evaluate(model, dataloader, Ks, device):
+def evaluate(model, dataloader, device):
     test_batch_size = dataloader.test_batch_size
     train_head_dict = dataloader.train_head_dict
     test_head_dict = dataloader.test_head_dict
@@ -35,8 +35,8 @@ def evaluate(model, dataloader, Ks, device):
     tail_ids = torch.LongTensor(dataloader.prediction_tail_ids).to(device)
 
     prediction_scores = []
-    metric_names = ['precision', 'recall']
-    metrics_dict = {k: {m: [] for m in metric_names} for k in Ks}
+    metric_names = ['precision', 'recall', 'f1']
+    metrics_dict = {m: [] for m in metric_names}
 
     with tqdm(total=len(head_ids_batches), desc='Evaluating Iteration') as pbar:
         for batch_head_ids in head_ids_batches:
@@ -48,20 +48,18 @@ def evaluate(model, dataloader, Ks, device):
 
             batch_scores = batch_scores.cpu()
 
-            batch_metrics = calc_metrics_at_k(
-                batch_scores, train_head_dict, test_head_dict, batch_head_ids.cpu().numpy(), tail_ids.cpu().numpy(), Ks)
+            batch_metrics = calc_metrics(
+                batch_scores, train_head_dict, batch_head_ids.cpu().numpy(), tail_ids.cpu().numpy())
 
             # prediction_scores.append(batch_scores.numpy())
-            for k in Ks:
-                for m in metric_names:
-                    metrics_dict[k][m].append(batch_metrics[k][m])
+            for m in metric_names:
+                metrics_dict[m].append(batch_metrics[m])
             pbar.update(1)
             torch.cuda.empty_cache()
 
     # prediction_scores = np.concatenate(prediction_scores, axis=0)
-    for k in Ks:
-        for m in metric_names:
-            metrics_dict[k][m] = np.concatenate(metrics_dict[k][m]).mean()
+    for m in metric_names:
+        metrics_dict[m] = np.array(metrics_dict[m]).mean()
     return prediction_scores, metrics_dict
 
 def train(args):
@@ -106,7 +104,7 @@ def train(args):
 
     pt_loss_list, pt_time_training = pre_training_train(model, data, pre_training_optimizer, device, args, writer)
 
-    device="cuda:3"
+    device="cuda:0"
 
     ft_loss_list, ft_time_training = fine_tuning_train(model, data, fine_tuning_optimizer, device, args, writer)
 
@@ -223,12 +221,12 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
     best_epoch = -1
     best_recall = 0
 
-    Ks = eval(args.Ks)
-    k_min = min(Ks)
-    k_max = max(Ks)
+    # Ks = eval(args.Ks)
+    # k_min = min(Ks)
+    # k_max = max(Ks)
 
     epoch_list = []
-    metrics_list = {k: {'precision': [], 'recall': []} for k in Ks}
+    metrics_list = {'precision': [], 'recall': [], 'f1': []}
 
     # train
     ft_loss_list = []
@@ -292,10 +290,10 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         # evaluate prediction layer
         if (epoch % args.evaluate_every) == 0 or epoch == args.n_epoch:
             time2 = time()
-            _, metrics_dict = evaluate(model, data, Ks, device)
+            _, metrics_dict = evaluate(model, data, device)
 
-            metrics_str = 'Fine Tuning Evaluation: Epoch {:04d} | Total Time {:.1f}s | Precision [{:.4f}, {:.4f}], Recall [{:.4f}, {:.4f}]'.format(
-                epoch, time() - time2, metrics_dict[k_min]['precision'], metrics_dict[k_max]['precision'], metrics_dict[k_min]['recall'], metrics_dict[k_max]['recall'])
+            metrics_str = 'Fine Tuning Evaluation: Epoch {:04d} | Total Time {:.1f}s | Precision [{:.4f}], Recall [{:.4f}], F1 [{:.4f}]'.format(
+                epoch, time() - time2, metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1'])
 
             logging.info(metrics_str)
             temp_metrics_df = pd.DataFrame(data=[{"metrics": metrics_str}])
@@ -303,16 +301,15 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
                 args.save_dir + '/metrics_{}.tsv'.format(epoch), sep='\t', index=False)
 
             epoch_list.append(epoch)
-            for k in Ks:
-                for m in ['precision', 'recall']:
-                    metrics_list[k][m].append(metrics_dict[k][m])
+            for m in ['precision', 'recall', 'f1']:
+                metrics_list[m].append(metrics_dict[m])
             best_recall, should_stop = early_stopping(
-                metrics_list[k_min]['recall'], args.stopping_steps)
+                metrics_list['recall'], args.stopping_steps)
 
             if should_stop:
                 break
 
-            if metrics_list[k_min]['recall'].index(best_recall) == len(epoch_list) - 1:
+            if metrics_list['recall'].index(best_recall) == len(epoch_list) - 1:
                 save_model(model, args.save_dir, epoch, best_epoch)
                 logging.info('Save model on epoch {:04d}!'.format(epoch))
                 best_epoch = epoch
@@ -330,10 +327,9 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
     # save metrics
     metrics_df = [epoch_list]
     metrics_cols = ['epoch_idx']
-    for k in Ks:
-        for m in ['precision', 'recall']:
-            metrics_df.append(metrics_list[k][m])
-            metrics_cols.append('{}@{}'.format(m, k))
+    for m in ['precision', 'recall', 'f1']:
+        metrics_df.append(metrics_list[m])
+        metrics_cols.append('{}'.format(m))
     metrics_df = pd.DataFrame(metrics_df).transpose()
     metrics_df.columns = metrics_cols
     metrics_df.to_csv(args.save_dir + '/metrics.tsv', sep='\t', index=False)
@@ -341,8 +337,8 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
     # print best metrics
     best_metrics = metrics_df.loc[metrics_df['epoch_idx']
                                   == best_epoch].iloc[0].to_dict()
-    logging.info('Best Prediction Layer Evaluation: Epoch {:04d} | Precision [{:.4f}, {:.4f}], Recall [{:.4f}, {:.4f}]'.format(
-        int(best_metrics['epoch_idx']), best_metrics['precision@{}'.format(k_min)], best_metrics['precision@{}'.format(k_max)], best_metrics['recall@{}'.format(k_min)], best_metrics['recall@{}'.format(k_max)]))
+    logging.info('Best Prediction Layer Evaluation: Epoch {:04d} | Precision [{:.4f}], Recall [{:.4f}], F1_Score [{:.4f}]'.format(
+        int(best_metrics['epoch_idx']), best_metrics['precision'], best_metrics['recall'], best_metrics['f1']))
 
     return ft_loss_list, ft_time_training
 
