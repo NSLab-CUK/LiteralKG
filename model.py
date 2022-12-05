@@ -405,7 +405,8 @@ class LiteralKG(nn.Module):
 
     def predict_links(self, head_ids, tail_ids):
         scores = self.calc_score(head_ids, tail_ids)
-
+        scores = (scores - torch.min(scores)) / (torch.max(scores) - torch.min(scores))
+        print(scores)
         return (scores>self.milestone_score).int()
 
     def forward(self, *input, device, mode):

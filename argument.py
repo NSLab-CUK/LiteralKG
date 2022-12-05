@@ -13,8 +13,8 @@ def parse_args():
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
 
-    parser.add_argument('--use_pretrain', type=int, default=0,
-                        help='0: No pretrain, 1: Pretrain with the learned embeddings, 2: Pretrain with stored model.')
+    parser.add_argument('--use_pretrain', type=int, default=1,
+                        help='0: No pretrain, 1: Pretrain with stored model.')
     parser.add_argument('--pretrain_embedding_dir', nargs='?', default='data/pretrain/',
                         help='Path of learned embeddings.')
     parser.add_argument('--pretrain_model_path', nargs='?', default='trained_model/model.pth',
@@ -70,7 +70,7 @@ def parse_args():
     parser.add_argument('--stopping_steps', type=int, default=10,
                         help='Number of epoch for early stopping')
 
-    parser.add_argument('--milestone_score', type=float, default=2.0,
+    parser.add_argument('--milestone_score', type=float, default=0.5,
                         help='The condition of link score.')
 
     parser.add_argument('--fine_tuning_print_every', type=int, default=500,

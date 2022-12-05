@@ -68,8 +68,8 @@ class DataLoaderBase(object):
         self.text_embed = {}
         self.load_attributes()
 
-        if self.use_pretrain == 1:
-            self.load_pretrained_data()
+        # if self.use_pretrain == 1:
+        #     self.load_pretrained_data()
 
     # def load_transr(self):
     #     self.transr.load_checkpoint(self.embedding_path)
@@ -308,18 +308,18 @@ class DataLoaderBase(object):
 
         return results
 
-    def load_pretrained_data(self):
-        pre_model = 'mf'
-        pretrain_path = '%s/%s/%s.npz' % (self.pretrain_embedding_dir,
-                                          self.data_name, pre_model)
-        pretrain_data = np.load(pretrain_path)
-        self.head_pre_embed = pretrain_data['head_embed']
-        self.tail_pre_embed = pretrain_data['tail_embed']
+    # def load_pretrained_data(self):
+    #     pre_model = 'mf'
+    #     pretrain_path = '%s/%s/%s.npz' % (self.pretrain_embedding_dir,
+    #                                       self.data_name, pre_model)
+    #     pretrain_data = np.load(pretrain_path)
+    #     self.head_pre_embed = pretrain_data['head_embed']
+    #     self.tail_pre_embed = pretrain_data['tail_embed']
 
-        assert self.head_pre_embed.shape[0] == self.n_heads
-        assert self.tail_pre_embed.shape[0] == self.n_tails
-        assert self.head_pre_embed.shape[1] == self.args.embed_dim
-        assert self.tail_pre_embed.shape[1] == self.args.embed_dim
+    #     assert self.head_pre_embed.shape[0] == self.n_heads
+    #     assert self.tail_pre_embed.shape[0] == self.n_tails
+    #     assert self.head_pre_embed.shape[1] == self.args.embed_dim
+    #     assert self.tail_pre_embed.shape[1] == self.args.embed_dim
 
 class DataLoader(DataLoaderBase):
 

@@ -102,15 +102,20 @@ def train(args):
 
     writer = SummaryWriter()
 
-    pt_loss_list, pt_time_training = pre_training_train(model, data, pre_training_optimizer, device, args, writer)
+    pt_loss_list = None
 
-    device="cuda:0"
+    if args.use_pretrain:
+        logging.info("----- USE PRE-TRAINING MODEL -----")
+        model = load_model(model, args.pretrain_model_path)
+    else:
+        pt_loss_list, pt_time_training = pre_training_train(model, data, pre_training_optimizer, device, args, writer)
 
     ft_loss_list, ft_time_training = fine_tuning_train(model, data, fine_tuning_optimizer, device, args, writer)
 
     logging.info("FINALLY -------")
-    logging.info("Pre-training loss list {}".format(pt_loss_list))
-    logging.info("Pre training time training {}".format(pt_time_training))
+    if pt_loss_list is not None:
+        logging.info("Pre-training loss list {}".format(pt_loss_list))
+        logging.info("Pre training time training {}".format(pt_time_training))
     logging.info("Fine tuning loss list {}".format(ft_loss_list))
     logging.info("Fine tuning time training {}".format(ft_time_training))
 
