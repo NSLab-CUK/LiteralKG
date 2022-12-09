@@ -8,7 +8,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=2022,
                         help='Random seed.')
 
-    parser.add_argument('--data_name', nargs='?', default='Test',
+    parser.add_argument('--data_name', nargs='?', default='Release',
                         help='Choose a dataset')
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
@@ -17,14 +17,14 @@ def parse_args():
                         help='0: No pretrain, 1: Pretrain with stored model.')
     parser.add_argument('--pretrain_embedding_dir', nargs='?', default='data/pretrain/',
                         help='Path of learned embeddings.')
-    parser.add_argument('--pretrain_model_path', nargs='?', default='trained_model/model.pth',
+    parser.add_argument('--pretrain_model_path', nargs='?', default='trained_model/release_88.pth',
                         help='Path of stored model.')
 
-    parser.add_argument('--fine_tuning_batch_size', type=int, default=1024,
+    parser.add_argument('--fine_tuning_batch_size', type=int, default=2048,
                         help='Fine Tuning batch size.')
     parser.add_argument('--pre_training_batch_size', type=int, default=2048,
                         help='KG batch size.')
-    parser.add_argument('--test_batch_size', type=int, default=1024,
+    parser.add_argument('--test_batch_size', type=int, default=2048,
                         help='Test batch size (the head number to test every batch).')
 
     parser.add_argument('--total_ent', type=int, default=1000,
@@ -63,11 +63,11 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=0.0001,
                         help='Learning rate.')
 
-    parser.add_argument('--n_epoch', type=int, default=5,
+    parser.add_argument('--n_epoch', type=int, default=50,
                         help='Number of epoch.')
     parser.add_argument('--epoch_data_rate', type=float, default=1,
                         help='Sampling data rate for each epoch.')
-    parser.add_argument('--stopping_steps', type=int, default=10,
+    parser.add_argument('--stopping_steps', type=int, default=15,
                         help='Number of epoch for early stopping')
 
     parser.add_argument('--milestone_score', type=float, default=0.5,
@@ -77,7 +77,7 @@ def parse_args():
                         help='Iter interval of printing Fine Tuning loss.')
     parser.add_argument('--kg_print_every', type=int, default=500,
                         help='Iter interval of printing KG loss.')
-    parser.add_argument('--evaluate_every', type=int, default=20,
+    parser.add_argument('--evaluate_every', type=int, default=1,
                         help='Epoch interval of evaluating Fine Tuning.')
 
     parser.add_argument('--Ks', nargs='?', default='[20, 40, 60, 80, 100]',
@@ -86,6 +86,9 @@ def parse_args():
     parser.add_argument('--pre_training_neg_rate', type=int, default=3,
                         help='The pre-training negative rate.')
     parser.add_argument('--fine_tuning_neg_rate', type=int, default=3,
+                        help='The fine tuning negative rate.')
+
+    parser.add_argument('--test_neg_rate', type=int, default=1,
                         help='The fine tuning negative rate.')
 
 

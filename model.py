@@ -194,14 +194,16 @@ class LiteralKG(nn.Module):
 
     def gate_embeddings(self):
         ent_emb = self.entity_embed.weight
-        self.numerical_literals_embed = self.numerical_literals_embed.to(self.device)
-        self.text_literals_embed = self.text_literals_embed.to(self.device)
 
         if self.args.use_num_lit and self.args.use_txt_lit:
+            self.numerical_literals_embed = self.numerical_literals_embed.to(self.device)
+            self.text_literals_embed = self.text_literals_embed.to(self.device)
             return self.emb_mul_lit(ent_emb, self.numerical_literals_embed, self.text_literals_embed)
         elif self.args.use_num_lit:
+            self.numerical_literals_embed = self.numerical_literals_embed.to(self.device)
             return self.emb_num_lit(ent_emb, self.numerical_literals_embed)
         elif self.args.use_txt_lit:
+            self.text_literals_embed = self.text_literals_embed.to(self.device)
             return self.emb_txt_lit(ent_emb, self.text_literals_embed)
         return ent_emb
 
@@ -253,11 +255,8 @@ class LiteralKG(nn.Module):
 
         pos_score = torch.sum(head_embed * tail_pos_embed,
                               dim=1)  # (batch_size)
-        print("Conpare pos_score neg_score")
-        print(pos_score)
         neg_score = torch.sum(head_embed * tail_neg_embed,
                               dim=1)  # (batch_size)
-        print(neg_score)
 
         # prediction_loss = F.softplus(neg_score - pos_score)
         prediction_loss = (-1.0) * F.logsigmoid(pos_score - neg_score)
@@ -406,7 +405,6 @@ class LiteralKG(nn.Module):
     def predict_links(self, head_ids, tail_ids):
         scores = self.calc_score(head_ids, tail_ids)
         scores = (scores - torch.min(scores)) / (torch.max(scores) - torch.min(scores))
-        print(scores)
         return (scores>self.milestone_score).int()
 
     def forward(self, *input, device, mode):

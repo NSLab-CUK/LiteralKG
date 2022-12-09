@@ -24,6 +24,8 @@ def evaluate(model, dataloader, device):
     train_head_dict = dataloader.train_head_dict
     test_head_dict = dataloader.test_head_dict
 
+    print()
+
     model.eval()
     head_ids = list(test_head_dict.keys())
 
@@ -31,11 +33,10 @@ def evaluate(model, dataloader, device):
                         for i in range(0, len(head_ids), test_batch_size)]
     head_ids_batches = [torch.LongTensor(d) for d in head_ids_batches]
 
-    n_tails = dataloader.n_tails
     tail_ids = torch.LongTensor(dataloader.prediction_tail_ids).to(device)
 
     prediction_scores = []
-    metric_names = ['precision', 'recall', 'f1']
+    metric_names = ['accuracy', 'precision', 'recall', 'f1']
     metrics_dict = {m: [] for m in metric_names}
 
     with tqdm(total=len(head_ids_batches), desc='Evaluating Iteration') as pbar:
@@ -49,7 +50,7 @@ def evaluate(model, dataloader, device):
             batch_scores = batch_scores.cpu()
 
             batch_metrics = calc_metrics(
-                batch_scores, train_head_dict, batch_head_ids.cpu().numpy(), tail_ids.cpu().numpy())
+                batch_scores, test_head_dict, batch_head_ids.cpu().numpy(), tail_ids.cpu().numpy(), neg_rate)
 
             # prediction_scores.append(batch_scores.numpy())
             for m in metric_names:
@@ -231,7 +232,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
     # k_max = max(Ks)
 
     epoch_list = []
-    metrics_list = {'precision': [], 'recall': [], 'f1': []}
+    metrics_list = {'accuracy': [], 'precision': [], 'recall': [], 'f1': []}
 
     # train
     ft_loss_list = []
@@ -283,7 +284,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         if min_loss > prediction_loss_value:
             min_loss = prediction_loss_value
             save_model(model, args.save_dir, epoch, best_epoch, name="fine-tuning")
-            logging.info('Save pre-training model on epoch {:04d}!'.format(epoch))
+            logging.info('Save fine-tuning training model on epoch {:04d}!'.format(epoch))
             best_epoch = epoch
         
         ft_loss_list.append(prediction_loss_value)
@@ -295,10 +296,15 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         # evaluate prediction layer
         if (epoch % args.evaluate_every) == 0 or epoch == args.n_epoch:
             time2 = time()
-            _, metrics_dict = evaluate(model, data, device)
+            _, metrics_dict = evaluate(model, data, device, neg_rate=args.test_neg_rate)
 
-            metrics_str = 'Fine Tuning Evaluation: Epoch {:04d} | Total Time {:.1f}s | Precision [{:.4f}], Recall [{:.4f}], F1 [{:.4f}]'.format(
-                epoch, time() - time2, metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1'])
+            metrics_str = 'Fine Tuning Evaluation: Epoch {:04d} | Total Time {:.1f}s | Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1 [{:.4f}]'.format(
+                epoch, time() - time2, metrics_dict['accuracy'], metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1'])
+
+            writer.add_scalar('Accuracy Plot', metrics_dict['accuracy'], epoch)
+            writer.add_scalar('Precision Plot', metrics_dict['precision'], epoch)
+            writer.add_scalar('Recall Plot', metrics_dict['recall'], epoch)
+            writer.add_scalar('F1 Score Plot', metrics_dict['f1'], epoch)
 
             logging.info(metrics_str)
             temp_metrics_df = pd.DataFrame(data=[{"metrics": metrics_str}])
@@ -306,7 +312,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
                 args.save_dir + '/metrics_{}.tsv'.format(epoch), sep='\t', index=False)
 
             epoch_list.append(epoch)
-            for m in ['precision', 'recall', 'f1']:
+            for m in ['accuracy', 'precision', 'recall', 'f1']:
                 metrics_list[m].append(metrics_dict[m])
             best_recall, should_stop = early_stopping(
                 metrics_list['recall'], args.stopping_steps)
@@ -332,7 +338,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
     # save metrics
     metrics_df = [epoch_list]
     metrics_cols = ['epoch_idx']
-    for m in ['precision', 'recall', 'f1']:
+    for m in ['accuracy', 'precision', 'recall', 'f1']:
         metrics_df.append(metrics_list[m])
         metrics_cols.append('{}'.format(m))
     metrics_df = pd.DataFrame(metrics_df).transpose()
@@ -342,8 +348,8 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
     # print best metrics
     best_metrics = metrics_df.loc[metrics_df['epoch_idx']
                                   == best_epoch].iloc[0].to_dict()
-    logging.info('Best Prediction Layer Evaluation: Epoch {:04d} | Precision [{:.4f}], Recall [{:.4f}], F1_Score [{:.4f}]'.format(
-        int(best_metrics['epoch_idx']), best_metrics['precision'], best_metrics['recall'], best_metrics['f1']))
+    logging.info('Best Prediction Layer Evaluation: Epoch {:04d} | Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1_Score [{:.4f}]'.format(
+        int(best_metrics['epoch_idx']), best_metrics['accuracy'], best_metrics['precision'], best_metrics['recall'], best_metrics['f1']))
 
     return ft_loss_list, ft_time_training
 
@@ -359,15 +365,10 @@ def predict(args):
     model = load_model(model, args.pretrain_model_path)
     model.to(device)
 
-    # predict
-    Ks = eval(args.Ks)
-    k_min = min(Ks)
-    k_max = max(Ks)
-
-    prediction_scores, metrics_dict = evaluate(model, data, Ks, device)
+    prediction_scores, metrics_dict = evaluate(model, data, device)
     np.save(args.save_dir + 'prediction_scores.npy', prediction_scores)
-    print('Fine Tuning Evaluation: Precision [{:.4f}, {:.4f}], Recall [{:.4f}, {:.4f}]'.format(
-        metrics_dict[k_min]['precision'], metrics_dict[k_max]['precision'], metrics_dict[k_min]['recall'], metrics_dict[k_max]['recall']))
+    print('Fine Tuning Evaluation: Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1_score [{:.4f}]'.format(
+        metrics_dict['accuracy'], metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1']))
 
 def main():
     args = parse_args()

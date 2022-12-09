@@ -1,0 +1,16 @@
+15
+patient	0
+species	1
+breed	2
+gender	3
+age_group	4
+age	5
+memo	6
+symptom	7
+treatment	8
+treatment_code	9
+prescription	10
+prescription_code	11
+weight	12
+disease	13
+main_category	14
