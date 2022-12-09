@@ -19,7 +19,7 @@ from utils.metric_utils import *
 from utils.model_utils import *
 
 
-def evaluate(model, dataloader, device):
+def evaluate(model, dataloader, device, neg_rate):
     test_batch_size = dataloader.test_batch_size
     train_head_dict = dataloader.train_head_dict
     test_head_dict = dataloader.test_head_dict
