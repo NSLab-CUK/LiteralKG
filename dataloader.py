@@ -59,8 +59,10 @@ class DataLoaderBase(object):
         # self.load_entity_embedding()
         
 
-        self.prediction_train_data, self.train_head_dict = self.load_prediction_data(
+        self.prediction_train_data, head_dict = self.load_prediction_data(
             self.train_file)
+        self.train_head_dict = dict(list(head_dict.items())[:int(args.train_data_rate*len(head_dict))])
+        self.val_head_dict = dict(list(head_dict.items())[int(args.train_data_rate*len(head_dict)):])
         self.prediction_test_data, self.test_head_dict = self.load_prediction_data(self.test_file)
         self.analize_prediction()
 
@@ -352,13 +354,15 @@ class DataLoader(DataLoaderBase):
         self.n_relations = len(set(graph_data['r']))
 
         # add interactions to kg data
-        prediction_train_triples = pd.DataFrame(
-            np.zeros((self.n_prediction_training, 3), dtype=np.int32), columns=['h', 'r', 't'])
-        prediction_train_triples['h'] = self.prediction_train_data[0]
-        prediction_train_triples['t'] = self.prediction_train_data[1]
+        # prediction_train_triples = pd.DataFrame(
+        #     np.zeros((self.n_prediction_training, 3), dtype=np.int32), columns=['h', 'r', 't'])
+        # prediction_train_triples['h'] = self.prediction_train_data[0]
+        # prediction_train_triples['t'] = self.prediction_train_data[1]
 
-        self.pre_train_data = pd.concat(
-            [graph_data, prediction_train_triples], ignore_index=True)
+        # self.pre_train_data = pd.concat(
+        #     [graph_data, prediction_train_triples], ignore_index=True)
+
+        self.pre_train_data = graph_data
         self.n_pre_training = len(self.pre_train_data)
 
         # construct kg dict
@@ -477,6 +481,8 @@ class DataLoader(DataLoaderBase):
         logging.info('n_r_list:          %d' % len(self.r_list))
 
         logging.info('n_prediction_training:        %d' % self.n_prediction_training)
+        logging.info('n_prediction_train:        %d' % len(self.train_head_dict))
+        logging.info('n_prediction_validate:        %d' % len(self.val_head_dict))
         logging.info('n_prediction_testing:         %d' % self.n_prediction_testing)
 
         logging.info('n_pre_training:        %d' % self.n_pre_training)

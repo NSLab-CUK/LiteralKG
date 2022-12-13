@@ -17,7 +17,7 @@ def parse_args():
                         help='0: No pretrain, 1: Pretrain with stored model.')
     parser.add_argument('--pretrain_embedding_dir', nargs='?', default='data/pretrain/',
                         help='Path of learned embeddings.')
-    parser.add_argument('--pretrain_model_path', nargs='?', default='trained_model/release_88.pth',
+    parser.add_argument('--pretrain_model_path', nargs='?', default='trained_model/release_graphsage_15.pth',
                         help='Path of stored model.')
 
     parser.add_argument('--fine_tuning_batch_size', type=int, default=2048,
@@ -40,6 +40,8 @@ def parse_args():
                         help='Numerical Literal Embedding size.')
     parser.add_argument('--txt_lit_dim', type=int, default=300,
                         help='Text Literal Embedding size.')
+    parser.add_argument('--scale_gat_dim', type=int, default=None,
+                        help='Scale gat concatenation.')
 
     parser.add_argument('--use_num_lit', type=bool, default=True,
                         help='Using Numerical Literal Embedding.')
@@ -48,7 +50,7 @@ def parse_args():
 
     parser.add_argument('--laplacian_type', type=str, default='random-walk',
                         help='Specify the type of the adjacency (laplacian) matrix from {symmetric, random-walk}.')
-    parser.add_argument('--aggregation_type', type=str, default='bi-interaction',
+    parser.add_argument('--aggregation_type', type=str, default='graphsage',
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction}.')
     parser.add_argument('--conv_dim_list', nargs='?', default='[64, 32, 16]',
                         help='Output sizes of every aggregation layer.')
@@ -80,8 +82,8 @@ def parse_args():
     parser.add_argument('--evaluate_every', type=int, default=1,
                         help='Epoch interval of evaluating Fine Tuning.')
 
-    parser.add_argument('--Ks', nargs='?', default='[20, 40, 60, 80, 100]',
-                        help='Calculate metric@K when evaluating.')
+    # parser.add_argument('--Ks', nargs='?', default='[20, 40, 60, 80, 100]',
+    #                     help='Calculate metric@K when evaluating.')
 
     parser.add_argument('--pre_training_neg_rate', type=int, default=3,
                         help='The pre-training negative rate.')
@@ -89,7 +91,10 @@ def parse_args():
                         help='The fine tuning negative rate.')
 
     parser.add_argument('--test_neg_rate', type=int, default=1,
-                        help='The fine tuning negative rate.')
+                        help='The testing data negative rate.')
+
+    parser.add_argument('--train_data_rate', type=int, default=0.8,
+                        help='The (train data/all train data) rate. Validate data rate = 1 - train_data_rate.')
 
 
     parser.add_argument('--device', nargs='?', default='cuda:0',

@@ -20,7 +20,6 @@ class Aggregator(nn.Module):
         self.weight = nn.Parameter(torch.FloatTensor(self.in_dim,self.in_dim))
         self.reset_parameters()
 
-
         self.message_dropout = nn.Dropout(dropout)
         self.activation = nn.LeakyReLU()
 
@@ -30,9 +29,17 @@ class Aggregator(nn.Module):
             nn.init.xavier_uniform_(self.linear.weight)
 
         elif self.aggregator_type == 'graphsage':
-            self.linear = nn.Linear(
-                self.in_dim * 2, self.out_dim)
-            nn.init.xavier_uniform_(self.linear.weight)
+            if self.use_residual:
+                self.linear_h = nn.Linear(
+                    self.in_dim*2, self.in_dim)
+                nn.init.xavier_uniform_(self.linear_h.weight)
+                self.linear = nn.Linear(
+                    self.in_dim, self.out_dim)
+                nn.init.xavier_uniform_(self.linear.weight)
+            else:
+                self.linear = nn.Linear(
+                    self.in_dim*2, self.out_dim)
+                nn.init.xavier_uniform_(self.linear.weight)
 
         elif self.aggregator_type == 'bi-interaction':
             self.linear1 = nn.Linear(
@@ -79,7 +86,11 @@ class Aggregator(nn.Module):
 
         elif self.aggregator_type == 'graphsage':
             hi = torch.cat([ego_embeddings, side_embeddings], dim=1)
-            embeddings = self.residual_connection(hi, h0, lamda, alpha, l)
+            if self.use_residual:
+                hi = self.linear_h(hi)
+                embeddings = self.residual_connection(hi, h0, lamda, alpha, l)
+            else:
+                embeddings = hi
             embeddings = self.activation(self.linear(embeddings))
 
         elif self.aggregator_type == 'bi-interaction':
@@ -125,6 +136,8 @@ class LiteralKG(nn.Module):
         self.embed_dim = args.embed_dim
         self.relation_dim = args.relation_dim
 
+        self.scale_gat_dim = args.scale_gat_dim
+
         # Use residual connection
         self.use_residual = args.use_residual
         self.alpha = args.alpha
@@ -157,8 +170,18 @@ class LiteralKG(nn.Module):
         self.relation_embed = nn.Embedding(self.n_relations, self.relation_dim)
         # self.trans_M = nn.Parameter(torch.Tensor(
         #     self.n_relations, self.embed_dim, self.relation_dim))
-        self.gat_trans_M = nn.Parameter(torch.Tensor(
-            self.n_relations, self.embed_dim + self.conv_dim_list[1] + self.conv_dim_list[2] + self.conv_dim_list[3], self.relation_dim))
+
+        if self.scale_gat_dim is not None:
+            self.linear_gat = nn.Linear(
+                    self.embed_dim + self.conv_dim_list[1] + self.conv_dim_list[2] + self.conv_dim_list[3], self.scale_gat_dim)
+            nn.init.xavier_uniform_(self.linear_gat.weight)
+            self.gat_trans_M = nn.Parameter(torch.Tensor(
+                self.n_relations, self.scale_gat_dim, self.relation_dim))
+        else:
+            self.gat_trans_M = nn.Parameter(torch.Tensor(
+                self.n_relations,
+                self.embed_dim + self.conv_dim_list[1] + self.conv_dim_list[2] + self.conv_dim_list[3],
+                self.relation_dim))
 
         nn.init.xavier_uniform_(self.entity_embed.weight)
 
@@ -205,6 +228,7 @@ class LiteralKG(nn.Module):
         elif self.args.use_txt_lit:
             self.text_literals_embed = self.text_literals_embed.to(self.device)
             return self.emb_txt_lit(ent_emb, self.text_literals_embed)
+
         return ent_emb
 
     def gate_embeddings_v2(self, e):
@@ -234,8 +258,11 @@ class LiteralKG(nn.Module):
             norm_embed = F.normalize(ent_lit_mul_r, p=2, dim=1)
             all_embed.append(norm_embed)
 
-        # (n_heads + n_tails, concat_dim)
-        return torch.cat(all_embed, dim=1)
+        if self.scale_gat_dim is not None:
+            return self.linear_gat(torch.cat(all_embed, dim=1))
+        else:
+            # (n_heads + n_tails, concat_dim)
+            return torch.cat(all_embed, dim=1)
 
     def calculate_prediction_loss(self, head_ids, tail_pos_ids, tail_neg_ids):
         """
@@ -255,8 +282,12 @@ class LiteralKG(nn.Module):
 
         pos_score = torch.sum(head_embed * tail_pos_embed,
                               dim=1)  # (batch_size)
+        # print("Compare the positive score and negative score")
+        # print(pos_score)
+
         neg_score = torch.sum(head_embed * tail_neg_embed,
                               dim=1)  # (batch_size)
+        # print(neg_score)
 
         # prediction_loss = F.softplus(neg_score - pos_score)
         prediction_loss = (-1.0) * F.logsigmoid(pos_score - neg_score)
@@ -400,12 +431,14 @@ class LiteralKG(nn.Module):
         prediction_score = torch.matmul(
             head_embed, tail_embed.transpose(0, 1))  # (n_heads, n_items)
 
+        # print(prediction_score)
+
         return prediction_score
 
     def predict_links(self, head_ids, tail_ids):
         scores = self.calc_score(head_ids, tail_ids)
         scores = (scores - torch.min(scores)) / (torch.max(scores) - torch.min(scores))
-        return (scores>self.milestone_score).int()
+        return (scores > self.milestone_score).int()
 
     def forward(self, *input, device, mode):
         self.device=device

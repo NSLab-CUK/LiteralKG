@@ -13,55 +13,9 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
 from argument import parse_args
 
-
 from utils.log_utils import *
 from utils.metric_utils import *
 from utils.model_utils import *
-
-
-def evaluate(model, dataloader, device, neg_rate):
-    test_batch_size = dataloader.test_batch_size
-    train_head_dict = dataloader.train_head_dict
-    test_head_dict = dataloader.test_head_dict
-
-    print()
-
-    model.eval()
-    head_ids = list(test_head_dict.keys())
-
-    head_ids_batches = [head_ids[i: i + test_batch_size]
-                        for i in range(0, len(head_ids), test_batch_size)]
-    head_ids_batches = [torch.LongTensor(d) for d in head_ids_batches]
-
-    tail_ids = torch.LongTensor(dataloader.prediction_tail_ids).to(device)
-
-    prediction_scores = []
-    metric_names = ['accuracy', 'precision', 'recall', 'f1']
-    metrics_dict = {m: [] for m in metric_names}
-
-    with tqdm(total=len(head_ids_batches), desc='Evaluating Iteration') as pbar:
-        for batch_head_ids in head_ids_batches:
-            batch_head_ids = batch_head_ids.to(device)
-
-            with torch.no_grad():
-                # (n_batch_heads, n_tails)
-                batch_scores = model(batch_head_ids, tail_ids, device=device, mode='predict')
-
-            batch_scores = batch_scores.cpu()
-
-            batch_metrics = calc_metrics(
-                batch_scores, test_head_dict, batch_head_ids.cpu().numpy(), tail_ids.cpu().numpy(), neg_rate)
-
-            # prediction_scores.append(batch_scores.numpy())
-            for m in metric_names:
-                metrics_dict[m].append(batch_metrics[m])
-            pbar.update(1)
-            torch.cuda.empty_cache()
-
-    # prediction_scores = np.concatenate(prediction_scores, axis=0)
-    for m in metric_names:
-        metrics_dict[m] = np.array(metrics_dict[m]).mean()
-    return prediction_scores, metrics_dict
 
 def train(args):
     # seed
@@ -101,7 +55,7 @@ def train(args):
     print("Total parameters: {}".format(pytorch_total_params))
 
 
-    writer = SummaryWriter()
+    writer = SummaryWriter(comment=f"-{args.aggregation_type}-{args.data_name}")
 
     pt_loss_list = None
 
@@ -296,7 +250,8 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         # evaluate prediction layer
         if (epoch % args.evaluate_every) == 0 or epoch == args.n_epoch:
             time2 = time()
-            _, metrics_dict = evaluate(model, data, device, neg_rate=args.test_neg_rate)
+
+            _, metrics_dict = evaluate(model, data.val_head_dict, data.test_batch_size, data.prediction_tail_ids, device, neg_rate=args.test_neg_rate)
 
             metrics_str = 'Fine Tuning Evaluation: Epoch {:04d} | Total Time {:.1f}s | Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1 [{:.4f}]'.format(
                 epoch, time() - time2, metrics_dict['accuracy'], metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1'])
@@ -325,14 +280,9 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
                 logging.info('Save model on epoch {:04d}!'.format(epoch))
                 best_epoch = epoch
 
-            print("Evaluate")
-            print(metrics_dict)
-
         # Logging every epoch
         logging.info("Fine tuning loss list {}".format(ft_loss_list))
         logging.info("Fine tuning time {}".format(ft_time_training))
-
-
 
 
     # save metrics
@@ -352,23 +302,6 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         int(best_metrics['epoch_idx']), best_metrics['accuracy'], best_metrics['precision'], best_metrics['recall'], best_metrics['f1']))
 
     return ft_loss_list, ft_time_training
-
-def predict(args):
-    # GPU / CPU
-    device = args.device
-
-    # load data
-    data = DataLoader(args, logging)
-
-    # load model
-    model = LiteralKG(args, data.n_entities, data.n_relations, data.numeric_embed, data.text_embed)
-    model = load_model(model, args.pretrain_model_path)
-    model.to(device)
-
-    prediction_scores, metrics_dict = evaluate(model, data, device)
-    np.save(args.save_dir + 'prediction_scores.npy', prediction_scores)
-    print('Fine Tuning Evaluation: Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1_score [{:.4f}]'.format(
-        metrics_dict['accuracy'], metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1']))
 
 def main():
     args = parse_args()
