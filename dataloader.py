@@ -248,20 +248,22 @@ class DataLoaderBase(object):
                 sample_pos_tails.append(tail)
         return sample_relations, sample_pos_tails
 
-    def sample_neg_triples_for_head(self, kg_dict, head, relation, n_sample_neg_triples, highest_neg_idx):
+    def sample_neg_triples_for_head(self, kg_dict, head, relation, n_sample_neg_triples, training_tails):
         pos_triples = kg_dict[head]
 
         sample_neg_tails = []
         while True:
             if len(sample_neg_tails) == n_sample_neg_triples:
                 break
-
-            tail = np.random.randint(low=0, high=highest_neg_idx, size=1)[0]
+            try:
+                tail = random.choice(training_tails)
+            except:
+                continue
             if (tail, relation) not in pos_triples and tail not in sample_neg_tails:
                 sample_neg_tails.append(tail)
         return sample_neg_tails
 
-    def generate_kg_batch(self, kg_dict, batch_size, highest_neg_idx):
+    def generate_kg_batch(self, kg_dict, batch_size, training_tails):
         exist_heads = kg_dict.keys()
         batch_size = int(batch_size / self.pre_training_neg_rate)
 
@@ -282,7 +284,7 @@ class DataLoaderBase(object):
 
             # Generate the negative samples
             neg_tail = self.sample_neg_triples_for_head(
-                kg_dict, h, relation[0], self.pre_training_neg_rate, highest_neg_idx)
+                kg_dict, h, relation[0], self.pre_training_neg_rate, training_tails)
 
             batch_neg_tail += neg_tail
 
@@ -336,6 +338,7 @@ class DataLoader(DataLoaderBase):
 
         graph_data = self.load_graph(self.kg_file)
         self.construct_data(graph_data)
+        self.training_tails = graph_data['t']
         self.embed_num_literal()
         self.embed_txt_literal()
         self.print_info(logging)
@@ -361,7 +364,6 @@ class DataLoader(DataLoaderBase):
 
         # self.pre_train_data = pd.concat(
         #     [graph_data, prediction_train_triples], ignore_index=True)
-
         self.pre_train_data = graph_data
         self.n_pre_training = len(self.pre_train_data)
 
@@ -385,12 +387,19 @@ class DataLoader(DataLoaderBase):
 
         self.n_heads = max(max(h_list) + 1, self.n_heads)
         self.n_tails = max(max(t_list) + 1, self.n_tails)
+
+        self.n_entities = max(self.n_heads, self.n_tails)
         if self.args.use_num_lit:
-            self.n_entities = max(list(self.numeric_embed)) + 1
-        elif self.args.use_txt_lit:
-            self.n_entities = max(list(self.text_embed)) + 1
-        else:
-            self.n_entities = max(self.n_heads, self.n_tails) 
+            self.n_num_embed = max(list(self.numeric_embed)) + 1
+
+        if self.args.use_txt_lit:
+            self.n_txt_embed = max(list(self.text_embed)) + 1
+
+        if self.args.use_num_lit and self.n_entities < self.n_num_embed:
+            self.n_entities = self.n_num_embed
+        elif self.args.use_txt_lit and self.n_entities < self.n_txt_embed:
+            self.n_entities = self.n_txt_embed
+
         self.n_head_tail = self.n_entities
 
         self.h_list = torch.LongTensor(h_list)
@@ -398,20 +407,18 @@ class DataLoader(DataLoaderBase):
         self.r_list = torch.LongTensor(r_list)
 
     def embed_num_literal(self):
-        if len((list(self.numeric_embed))) == 0:
+        if len(list(self.numeric_embed)) == 0:
             return
-        self.num_embedding_table = torch.zeros((max(list(self.numeric_embed)) + 1, self.numeric_dim), device=self.device, dtype=torch.float32)
+        self.num_embedding_table = torch.zeros((self.n_entities, self.numeric_dim), device=self.device, dtype=torch.float32)
         for item in self.numeric_embed:
             self.num_embedding_table[item] = torch.tensor(self.numeric_embed[item], device=self.device, dtype=torch.float32)
 
     def embed_txt_literal(self):
-        if len((list(self.text_embed))) == 0:
-            
+        if len(list(self.text_embed)) == 0:
             return
-        self.text_embedding_table = torch.zeros((max(list(self.text_embed)) + 1, self.text_dim), device=self.device, dtype=torch.float32)
+        self.text_embedding_table = torch.zeros((self.n_entities, self.text_dim), device=self.device, dtype=torch.float32)
         for item in self.text_embed:
             self.text_embedding_table[item] = torch.tensor(self.text_embed[item], device=self.device, dtype=torch.float32)
-
 
     def convert_coo2tensor(self, coo):
         values = coo.data

@@ -10,7 +10,7 @@ def _L2_loss_mean(x):
 
 class Aggregator(nn.Module):
 
-    def __init__(self, in_dim, out_dim, dropout, aggregator_type, use_residual=False, args=None, n_layers=3):
+    def __init__(self, in_dim, out_dim, dropout, aggregator_type, use_residual=False, args=None):
         super(Aggregator, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -21,7 +21,7 @@ class Aggregator(nn.Module):
         self.reset_parameters()
 
         self.message_dropout = nn.Dropout(dropout)
-        self.activation = nn.LeakyReLU()
+        self.activation = nn.Tanh()
 
         if self.aggregator_type == 'gcn':
             self.linear = nn.Linear(
@@ -145,10 +145,12 @@ class LiteralKG(nn.Module):
 
 
         self.aggregation_type = args.aggregation_type
+        self.n_layers = args.n_conv_layers
         self.conv_dim_list = [args.embed_dim] + eval(args.conv_dim_list)
 
+        self.total_conv_dim = sum([self.conv_dim_list[i] for i in range(self.n_layers + 1)])
+
         self.mess_dropout = eval(args.mess_dropout)
-        self.n_layers = len(eval(args.conv_dim_list))
 
         self.kg_l2loss_lambda = args.kg_l2loss_lambda
         self.prediction_l2loss_lambda = args.fine_tuning_l2loss_lambda
@@ -172,15 +174,15 @@ class LiteralKG(nn.Module):
         #     self.n_relations, self.embed_dim, self.relation_dim))
 
         if self.scale_gat_dim is not None:
-            self.linear_gat = nn.Linear(
-                    self.embed_dim + self.conv_dim_list[1] + self.conv_dim_list[2] + self.conv_dim_list[3], self.scale_gat_dim)
+            self.linear_gat = nn.Linear(self.total_conv_dim, self.scale_gat_dim)
+            self.gat_activation = nn.Tanh()
             nn.init.xavier_uniform_(self.linear_gat.weight)
             self.gat_trans_M = nn.Parameter(torch.Tensor(
                 self.n_relations, self.scale_gat_dim, self.relation_dim))
         else:
             self.gat_trans_M = nn.Parameter(torch.Tensor(
                 self.n_relations,
-                self.embed_dim + self.conv_dim_list[1] + self.conv_dim_list[2] + self.conv_dim_list[3],
+                self.total_conv_dim,
                 self.relation_dim))
 
         nn.init.xavier_uniform_(self.entity_embed.weight)
@@ -205,7 +207,7 @@ class LiteralKG(nn.Module):
         for k in range(self.n_layers):
             self.aggregator_layers.append(
                 Aggregator(self.conv_dim_list[k], self.conv_dim_list[k + 1], self.mess_dropout[k],
-                           self.aggregation_type, self.use_residual, args, k+1))
+                           self.aggregation_type, self.use_residual, args))
 
         self.A_in = nn.Parameter(
             torch.sparse.FloatTensor(self.n_entities, self.n_entities))
@@ -259,7 +261,9 @@ class LiteralKG(nn.Module):
             all_embed.append(norm_embed)
 
         if self.scale_gat_dim is not None:
-            return self.linear_gat(torch.cat(all_embed, dim=1))
+            gat_embed = self.linear_gat(torch.cat(all_embed, dim=1))
+            gat_embed = self.gat_activation(gat_embed)
+            return gat_embed
         else:
             # (n_heads + n_tails, concat_dim)
             return torch.cat(all_embed, dim=1)
@@ -369,11 +373,14 @@ class LiteralKG(nn.Module):
         # Equation (2)
         # triplet_loss = F.softplus(pos_score - neg_score)
         triplet_loss = (-1.0) * F.logsigmoid(neg_score - pos_score)
+
         triplet_loss = torch.mean(triplet_loss)
 
         l2_loss = _L2_loss_mean(r_mul_h) + _L2_loss_mean(r_embed) + _L2_loss_mean(r_mul_pos_t) + _L2_loss_mean(
             r_mul_neg_t)
         loss = triplet_loss + self.kg_l2loss_lambda * l2_loss
+
+
         return loss
 
     def update_attention_batch(self, h_list, t_list, r_idx):

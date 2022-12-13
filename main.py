@@ -39,7 +39,7 @@ def train(args):
 
     # construct model & optimizer
     model = LiteralKG(args, data.n_entities,
-                 data.n_relations, data.A_in, data.num_embedding_table, data.text_embedding_table)
+                      data.n_relations, data.A_in, data.num_embedding_table, data.text_embedding_table)
 
     if args.use_pretrain == 2:
         model = load_model(model, args.pretrain_model_path)
@@ -51,15 +51,16 @@ def train(args):
     pre_training_optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     pytorch_total_params = sum(p.numel()
+
                                for p in model.parameters() if p.requires_grad)
     print("Total parameters: {}".format(pytorch_total_params))
 
-
-    writer = SummaryWriter(comment=f"-{args.aggregation_type}-{args.data_name}")
+    writer = SummaryWriter(
+        comment=f"_{args.aggregation_type}_{args.data_name}-embed-dim{args.embed_dim}_relation-dim{args.relation_dim}_n-layers{args.n_conv_layers}_gat{args.scale_gat_dim}_num-dim{args.use_num_lit}_txt-dim{args.use_txt_lit}")
 
     pt_loss_list = None
 
-    if args.use_pretrain:
+    if args.use_pretrain == 1:
         logging.info("----- USE PRE-TRAINING MODEL -----")
         model = load_model(model, args.pretrain_model_path)
     else:
@@ -73,6 +74,7 @@ def train(args):
         logging.info("Pre training time training {}".format(pt_time_training))
     logging.info("Fine tuning loss list {}".format(ft_loss_list))
     logging.info("Fine tuning time training {}".format(ft_time_training))
+
 
 def pre_training_train(model, data, optimizer, device, args, writer):
     logging.info("-----Pre-training model-----")
@@ -102,25 +104,26 @@ def pre_training_train(model, data, optimizer, device, args, writer):
         # Sampling data for each epoch
         n_data_samples = int(len(list(data.train_kg_dict)) * args.epoch_data_rate)
         epoch_sampling_data_list = random.sample(list(data.train_kg_dict), n_data_samples)
-        epoch_sampling_data_dict = { k: data.train_kg_dict[k] for k in epoch_sampling_data_list}
+        epoch_sampling_data_dict = {k: data.train_kg_dict[k] for k in epoch_sampling_data_list}
         n_kg_batch = n_data_samples // data.pre_training_batch_size + 1
 
         for iter in tqdm(range(1, n_kg_batch + 1), desc=f"EP:{epoch}_train"):
             time1 = time()
             kg_batch_head, kg_batch_relation, kg_batch_pos_tail, kg_batch_neg_tail = data.generate_kg_batch(
-                epoch_sampling_data_dict, data.pre_training_batch_size, data.n_head_tail)
+                epoch_sampling_data_dict, data.pre_training_batch_size, list(data.training_tails))
             kg_batch_head = kg_batch_head.to(device)
             kg_batch_relation = kg_batch_relation.to(device)
             kg_batch_pos_tail = kg_batch_pos_tail.to(device)
             kg_batch_neg_tail = kg_batch_neg_tail.to(device)
-            
+
             optimizer.zero_grad()
             kg_batch_loss = model(kg_batch_head, kg_batch_relation,
                                   kg_batch_pos_tail, kg_batch_neg_tail, device=device, mode='pre_training')
 
             if np.isnan(kg_batch_loss.cpu().detach().numpy()):
                 logging.info(
-                    'ERROR (Pre-training): Epoch {:04d} Iter {:04d} / {:04d} Loss is nan.'.format(epoch, iter, n_kg_batch))
+                    'ERROR (Pre-training): Epoch {:04d} Iter {:04d} / {:04d} Loss is nan.'.format(epoch, iter,
+                                                                                                  n_kg_batch))
                 sys.exit()
 
             kg_batch_loss.backward()
@@ -133,8 +136,10 @@ def pre_training_train(model, data, optimizer, device, args, writer):
             loss_value = kg_total_loss / n_kg_batch
 
             if (iter % args.kg_print_every) == 0:
-                logging.info('Pre-training: Epoch {:04d}/{:04d} Iter {:04d} / {:04d} | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean Loss {:.4f}'.format(
-                    epoch, args.n_epoch, iter, n_kg_batch, time() - time1, kg_batch_loss.item(), kg_total_loss / iter))
+                logging.info(
+                    'Pre-training: Epoch {:04d}/{:04d} Iter {:04d} / {:04d} | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean Loss {:.4f}'.format(
+                        epoch, args.n_epoch, iter, n_kg_batch, time() - time1, kg_batch_loss.item(),
+                                                               kg_total_loss / iter))
 
         # update attention
         time2 = time()
@@ -146,8 +151,9 @@ def pre_training_train(model, data, optimizer, device, args, writer):
         logging.info('Update Attention: Epoch {:04d} | Total Time {:.1f}s'.format(
             epoch, time() - time2))
 
-        logging.info('Pre-training: Epoch {:04d}/{:04d} Total Iter {:04d} | Total Time {:.1f}s | Iter Mean Loss {:.4f}'.format(
-            epoch, args.n_epoch, n_kg_batch, time() - time0, loss_value))
+        logging.info(
+            'Pre-training: Epoch {:04d}/{:04d} Total Iter {:04d} | Total Time {:.1f}s | Iter Mean Loss {:.4f}'.format(
+                epoch, args.n_epoch, n_kg_batch, time() - time0, loss_value))
 
         pt_loss_list.append(loss_value)
         pt_time_training.append(time() - time0)
@@ -166,8 +172,8 @@ def pre_training_train(model, data, optimizer, device, args, writer):
         logging.info("Loss pre-training list {}".format(pt_loss_list))
         logging.info("Pre-training time {}".format(pt_time_training))
 
-
     return pt_loss_list, pt_time_training
+
 
 def fine_tuning_train(model, data, optimizer, device, args, writer):
     logging.info("-----Fine-turning model-----")
@@ -212,11 +218,13 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
             prediction_batch_neg_tail = prediction_batch_neg_tail.to(device)
 
             prediction_batch_loss = model(
-                prediction_batch_head, prediction_batch_pos_tail, prediction_batch_neg_tail, device=device, mode='fine_tuning')
+                prediction_batch_head, prediction_batch_pos_tail, prediction_batch_neg_tail, device=device,
+                mode='fine_tuning')
 
             if np.isnan(prediction_batch_loss.cpu().detach().numpy()):
                 logging.info(
-                    'ERROR (Fine Tuning Training): Epoch {:04d} Iter {:04d} / {:04d} Loss is nan.'.format(epoch, iter, n_prediction_batch))
+                    'ERROR (Fine Tuning Training): Epoch {:04d} Iter {:04d} / {:04d} Loss is nan.'.format(epoch, iter,
+                                                                                                          n_prediction_batch))
                 sys.exit()
 
             prediction_batch_loss.backward()
@@ -228,19 +236,21 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
                 torch.cuda.empty_cache()
 
             if (iter % args.fine_tuning_print_every) == 0:
-                logging.info('Fine Tuning Training: Epoch {:04d}/{:04d} Iter {:04d} / {:04d} | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean Loss {:.4f}'.format(
-                    epoch, args.n_epoch, iter, n_prediction_batch, time() - time1, prediction_batch_loss.item(), prediction_total_loss / iter))
-        logging.info('Fine Tuning Training: Epoch {:04d}/{:04d} Total Iter {:04d} | Total Time {:.1f}s | Iter Mean Loss {:.4f}'.format(
-            epoch, args.n_epoch, n_prediction_batch, time() - time0, prediction_total_loss / n_prediction_batch))
-
+                logging.info(
+                    'Fine Tuning Training: Epoch {:04d}/{:04d} Iter {:04d} / {:04d} | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean Loss {:.4f}'.format(
+                        epoch, args.n_epoch, iter, n_prediction_batch, time() - time1, prediction_batch_loss.item(),
+                                                                       prediction_total_loss / iter))
+        logging.info(
+            'Fine Tuning Training: Epoch {:04d}/{:04d} Total Iter {:04d} | Total Time {:.1f}s | Iter Mean Loss {:.4f}'.format(
+                epoch, args.n_epoch, n_prediction_batch, time() - time0, prediction_total_loss / n_prediction_batch))
 
         prediction_loss_value = prediction_total_loss / n_prediction_batch
         if min_loss > prediction_loss_value:
             min_loss = prediction_loss_value
             save_model(model, args.save_dir, epoch, best_epoch, name="fine-tuning")
-            logging.info('Save fine-tuning training model on epoch {:04d}!'.format(epoch))
+            logging.info('Save pre-training model on epoch {:04d}!'.format(epoch))
             best_epoch = epoch
-        
+
         ft_loss_list.append(prediction_loss_value)
         writer.add_scalar('Prediction Loss/train', prediction_loss_value, epoch)
         ft_time_training.append(time() - time0)
@@ -250,15 +260,16 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         # evaluate prediction layer
         if (epoch % args.evaluate_every) == 0 or epoch == args.n_epoch:
             time2 = time()
-
-            _, metrics_dict = evaluate(model, data.val_head_dict, data.test_batch_size, data.prediction_tail_ids, device, neg_rate=args.test_neg_rate)
+            _, metrics_dict = evaluate(model, data, device, neg_rate=args.test_neg_rate)
 
             metrics_str = 'Fine Tuning Evaluation: Epoch {:04d} | Total Time {:.1f}s | Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1 [{:.4f}]'.format(
-                epoch, time() - time2, metrics_dict['accuracy'], metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1'])
+                epoch, time() - time2, metrics_dict['accuracy'], metrics_dict['precision'], metrics_dict['recall'],
+                metrics_dict['f1'])
 
             writer.add_scalar('Accuracy Plot', metrics_dict['accuracy'], epoch)
             writer.add_scalar('Precision Plot', metrics_dict['precision'], epoch)
-            writer.add_scalar('Recall Plot', metrics_dict['recall'], epoch)
+            writer.add_scalar('Recall Plot', metrics_dict['r'
+                                                          'ecall'], epoch)
             writer.add_scalar('F1 Score Plot', metrics_dict['f1'], epoch)
 
             logging.info(metrics_str)
@@ -284,7 +295,6 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         logging.info("Fine tuning loss list {}".format(ft_loss_list))
         logging.info("Fine tuning time {}".format(ft_time_training))
 
-
     # save metrics
     metrics_df = [epoch_list]
     metrics_cols = ['epoch_idx']
@@ -298,8 +308,10 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
     # print best metrics
     best_metrics = metrics_df.loc[metrics_df['epoch_idx']
                                   == best_epoch].iloc[0].to_dict()
-    logging.info('Best Prediction Layer Evaluation: Epoch {:04d} | Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1_Score [{:.4f}]'.format(
-        int(best_metrics['epoch_idx']), best_metrics['accuracy'], best_metrics['precision'], best_metrics['recall'], best_metrics['f1']))
+    logging.info(
+        'Best Prediction Layer Evaluation: Epoch {:04d} | Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1_Score [{:.4f}]'.format(
+            int(best_metrics['epoch_idx']), best_metrics['accuracy'], best_metrics['precision'], best_metrics['recall'],
+            best_metrics['f1']))
 
     return ft_loss_list, ft_time_training
 

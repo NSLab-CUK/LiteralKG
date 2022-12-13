@@ -23,11 +23,6 @@ def test_model(args):
     model = LiteralKG(args, data.n_entities,
                  data.n_relations, data.A_in, data.num_embedding_table, data.text_embedding_table)
 
-    # load data
-    data = DataLoader(args, logging)
-
-    # load model
-    model = LiteralKG(args, data.n_entities, data.n_relations, data.numeric_embed, data.text_embed)
     model = load_model(model, args.pretrain_model_path)
     model.to(device)
     time1 = time()
