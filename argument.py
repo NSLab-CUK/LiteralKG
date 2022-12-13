@@ -54,7 +54,7 @@ def parse_args():
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction, gin}.')
     parser.add_argument('--conv_dim_list', nargs='?', default='[32, 32, 32, 32, 32, 32, 32, 32, 32]',
                         help='Output sizes of every aggregation layer.')
-    parser.add_argument('--n_conv_layers', type=int, default=8,
+    parser.add_argument('--n_conv_layers', type=int, default=3,
                         help='Output sizes of every aggregation layer.')
     parser.add_argument('--mess_dropout', nargs='?', default='[0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]',
                         help='Dropout probability w.r.t. message dropout for each deep layer. 0: no dropout.')
@@ -111,8 +111,8 @@ def parse_args():
     parser.add_argument('--alpha', type=float, default=0.1, help='alpha_l')
     parser.add_argument('--lamda', type=float, default=0.5, help='lamda.')
 
-    parser.add_argument('--n_gin_layers', type=int, default=3, help='The number of GIN hidden layer.')
-    parser.add_argument('--gin_hidden_dim', type=int, default=150, help='The dimension of GIN hidden layer.')
+    parser.add_argument('--n_mlp_layers', type=int, default=3, help='The number of GIN hidden layer.')
+    parser.add_argument('--mlp_hidden_dim', type=int, default=64, help='The dimension of GIN hidden layer.')
 
     args = parser.parse_args()
 

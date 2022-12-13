@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from gate import Gate, GateMul
 import math
-import time
 
 def _L2_loss_mean(x):
     return torch.mean(torch.sum(torch.pow(x, 2), dim=1, keepdim=False) / 2.)
@@ -50,11 +49,26 @@ class Aggregator(nn.Module):
             nn.init.xavier_uniform_(self.linear2.weight)
 
         elif self.aggregator_type == 'gin':
-            hidden_dim = args.gin_hidden_dim
-            self.inp_linear = torch.nn.Linear(self.in_dim, hidden_dim)            
-            self.out_linear = torch.nn.Linear(hidden_dim, self.out_dim)
-            nn.init.xavier_uniform_(self.inp_linear.weight)
-            nn.init.xavier_uniform_(self.out_linear.weight)
+            hidden_dim = args.mlp_hidden_dim
+            self.num_layers = args.n_mlp_layers
+            self.weight = nn.Parameter(torch.FloatTensor(hidden_dim,hidden_dim))
+
+            if self.num_layers == 1:
+                #Linear model
+                self.linear = nn.Linear(self.in_dim, self.out_dim)
+            else:
+                #Multi-layer model
+                self.inp_linear = torch.nn.Linear(self.in_dim, hidden_dim)
+                self.linears = torch.nn.ModuleList()
+                self.batch_norms = torch.nn.ModuleList()
+            
+                for layer in range(self.num_layers - 1):
+                    self.linears.append(nn.Linear(hidden_dim, hidden_dim))
+                
+                self.out_linear = nn.Linear(hidden_dim, self.out_dim)
+
+                for layer in range(self.num_layers - 1):
+                    self.batch_norms.append(nn.BatchNorm1d((hidden_dim)))
         else:
             raise NotImplementedError
 
@@ -104,13 +118,21 @@ class Aggregator(nn.Module):
             embeddings = bi_embeddings + sum_embeddings
         elif self.aggregator_type == 'gin':
             hi = ego_embeddings + side_embeddings
-            hi = self.residual_connection(hi, h0, lamda, alpha, l)
-            h=self.inp_linear(ego_embeddings)
+            h = self.inp_linear(ego_embeddings)
+            h0 = self.inp_linear(h0) 
             layer_embeds = [h]
-            X = self.inp_linear(hi)
-            layer_embeds.append(X)
-
+            if self.num_layers == 1:
+                #Linear model
+                hi = self.linear(hi)
+            else:
+                #If MLP
+                h = self.inp_linear(hi)
+                for layer in range(self.num_layers-1):
+                    h = F.relu(self.batch_norms[layer](self.linears[layer](h)))
+                    layer_embeds.append(h)
+            
             X = torch.sum(torch.stack(layer_embeds), dim=0)
+            X = self.residual_connection(X, h0, lamda, alpha, l)
 
             embeddings = self.activation(self.out_linear(X))
 
