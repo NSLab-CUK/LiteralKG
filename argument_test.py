@@ -12,11 +12,11 @@ def parse_args():
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
 
-    parser.add_argument('--use_pretrain', type=int, default=0,
+    parser.add_argument('--use_pretrain', type=int, default=1,
                         help='0: No pretrain, 1: Pretrain with stored model.')
     parser.add_argument('--pretrain_embedding_dir', nargs='?', default='data/pretrain/',
                         help='Path of learned embeddings.')
-    parser.add_argument('--pretrain_model_path', nargs='?', default='trained_model/pre-training_model_epoch99.pth',
+    parser.add_argument('--pretrain_model_path', nargs='?', default='fine-tuning_model_epoch15.pth',
                         help='Path of stored model.')
 
     parser.add_argument('--fine_tuning_batch_size', type=int, default=2048,
@@ -54,7 +54,7 @@ def parse_args():
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction, gin}.')
     parser.add_argument('--conv_dim_list', nargs='?', default='[32, 32, 32, 32, 32, 32, 32, 32, 32]',
                         help='Output sizes of every aggregation layer.')
-    parser.add_argument('--n_conv_layers', type=int, default=2,
+    parser.add_argument('--n_conv_layers', type=int, default=9,
                         help='Output sizes of every aggregation layer.')
     parser.add_argument('--mess_dropout', nargs='?', default='[0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]',
                         help='Dropout probability w.r.t. message dropout for each deep layer. 0: no dropout.')
@@ -64,7 +64,7 @@ def parse_args():
     parser.add_argument('--fine_tuning_l2loss_lambda', type=float, default=1e-5,
                         help='Lambda when calculating Fine Tuning l2 loss.')
 
-    parser.add_argument('--lr', type=float, default=0.0003,
+    parser.add_argument('--lr', type=float, default=0.001,
                         help='Learning rate.')
 
     parser.add_argument('--milestone_score', type=float, default=0.5,
@@ -118,11 +118,12 @@ def parse_args():
 
     args.data_name = args.data_name.replace("'", "")
 
-    save_dir = 'trained_model/LiteralKG/{}/embed-dim{}_relation-dim{}_{}_n-layers{}_gat{}_num{}_txt{}_lr{}_pretrain{}/{}/'.format(
+    save_dir = 'trained_model/LiteralKG/{}/embed-dim{}_relation-dim{}_{}_n-layers{}_gat{}_num{}_txt{}_lr{}_pretrain0/{}/'.format(
         args.data_name, args.embed_dim, args.relation_dim, args.aggregation_type,
-        args.n_conv_layers, args.scale_gat_dim, args.use_num_lit, args.use_txt_lit, args.lr, args.use_pretrain,
+        args.n_conv_layers, args.scale_gat_dim, args.use_num_lit, args.use_txt_lit, args.lr,
         args.exp_name)
     args.save_dir = save_dir
+    args.pretrain_model_path = f"{args.save_dir}{args.pretrain_model_path}"
 
     return args
 

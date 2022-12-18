@@ -5,13 +5,13 @@ from dataloader import DataLoader
 import torch.optim as optim
 from tqdm import tqdm
 from time import time
-from model import LiteralKG
+from baselines import TransE
 import sys
 import pandas as pd
 from torch.utils.tensorboard import SummaryWriter
 
 import torch.nn as nn
-from argument import parse_args
+from argument_transe import parse_args
 
 from utils.log_utils import *
 from utils.metric_utils import *
@@ -38,7 +38,7 @@ def train(args):
     torch.cuda.empty_cache()
 
     # construct model & optimizer
-    model = LiteralKG(args, data.n_entities,
+    model = TransE(args, data.n_entities,
                       data.n_relations, data.A_in, data.num_embedding_table, data.text_embedding_table)
 
     if args.use_pretrain == 2:
@@ -118,7 +118,7 @@ def pre_training_train(model, data, optimizer, device, args, writer):
 
             optimizer.zero_grad()
             kg_batch_loss = model(kg_batch_head, kg_batch_relation,
-                                  kg_batch_pos_tail, kg_batch_neg_tail, device=device, mode='pre_training')
+                                  kg_batch_pos_tail, kg_batch_neg_tail)
 
             if np.isnan(kg_batch_loss.cpu().detach().numpy()):
                 logging.info(
@@ -140,16 +140,6 @@ def pre_training_train(model, data, optimizer, device, args, writer):
                     'Pre-training: Epoch {:04d}/{:04d} Iter {:04d} / {:04d} | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean Loss {:.4f}'.format(
                         epoch, args.n_epoch, iter, n_kg_batch, time() - time1, kg_batch_loss.item(),
                                                                kg_total_loss / iter))
-
-        # update attention
-        time2 = time()
-        h_list = data.h_list.to(device)
-        t_list = data.t_list.to(device)
-        r_list = data.r_list.to(device)
-        relations = list(data.laplacian_dict.keys())
-        model(h_list, t_list, r_list, relations, device=device, mode='update_att')
-        logging.info('Update Attention: Epoch {:04d} | Total Time {:.1f}s'.format(
-            epoch, time() - time2))
 
         logging.info(
             'Pre-training: Epoch {:04d}/{:04d} Total Iter {:04d} | Total Time {:.1f}s | Iter Mean Loss {:.4f}'.format(

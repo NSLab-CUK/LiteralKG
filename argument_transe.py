@@ -1,7 +1,7 @@
 import argparse
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run LiteralKG.")
+    parser = argparse.ArgumentParser(description="Run TransE.")
 
     parser.add_argument('--exp_name', type=str, default="run")
     parser.add_argument('--seed', type=int, default=2022,
@@ -42,9 +42,9 @@ def parse_args():
     parser.add_argument('--txt_lit_dim', type=int, default=300,
                         help='Text Literal Embedding size.')
 
-    parser.add_argument('--use_num_lit', type=bool, default=True,
+    parser.add_argument('--use_num_lit', type=bool, default=False,
                         help='Using Numerical Literal Embedding.')
-    parser.add_argument('--use_txt_lit', type=bool, default=True,
+    parser.add_argument('--use_txt_lit', type=bool, default=False,
                         help='Using Text Literal Embedding.')
 
     parser.add_argument('--laplacian_type', type=str, default='random-walk',
@@ -54,7 +54,7 @@ def parse_args():
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction, gin}.')
     parser.add_argument('--conv_dim_list', nargs='?', default='[32, 32, 32, 32, 32, 32, 32, 32, 32]',
                         help='Output sizes of every aggregation layer.')
-    parser.add_argument('--n_conv_layers', type=int, default=2,
+    parser.add_argument('--n_conv_layers', type=int, default=5,
                         help='Output sizes of every aggregation layer.')
     parser.add_argument('--mess_dropout', nargs='?', default='[0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]',
                         help='Dropout probability w.r.t. message dropout for each deep layer. 0: no dropout.')
@@ -64,7 +64,7 @@ def parse_args():
     parser.add_argument('--fine_tuning_l2loss_lambda', type=float, default=1e-5,
                         help='Lambda when calculating Fine Tuning l2 loss.')
 
-    parser.add_argument('--lr', type=float, default=0.0003,
+    parser.add_argument('--lr', type=float, default=0.005,
                         help='Learning rate.')
 
     parser.add_argument('--milestone_score', type=float, default=0.5,
