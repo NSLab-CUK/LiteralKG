@@ -16,8 +16,14 @@ def parse_args():
                         help='0: No pretrain, 1: Pretrain with stored model.')
     parser.add_argument('--pretrain_embedding_dir', nargs='?', default='data/pretrain/',
                         help='Path of learned embeddings.')
-    parser.add_argument('--pretrain_model_path', nargs='?', default='fine-tuning_model_epoch15.pth',
+    parser.add_argument('--pretrain_model_path', nargs='?', default='fine-tuning_model_epoch48.pth',
                         help='Path of stored model.')
+
+    parser.add_argument('--test_model', nargs='?', default="training",
+                        help='The model to test.')
+
+    parser.add_argument('--model_epoch', nargs='?', default=48,
+                        help='The epoch to test.')
 
     parser.add_argument('--fine_tuning_batch_size', type=int, default=2048,
                         help='Fine Tuning batch size.')
@@ -54,7 +60,7 @@ def parse_args():
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction, gin}.')
     parser.add_argument('--conv_dim_list', nargs='?', default='[32, 32, 32, 32, 32, 32, 32, 32, 32]',
                         help='Output sizes of every aggregation layer.')
-    parser.add_argument('--n_conv_layers', type=int, default=9,
+    parser.add_argument('--n_conv_layers', type=int, default=5,
                         help='Output sizes of every aggregation layer.')
     parser.add_argument('--mess_dropout', nargs='?', default='[0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]',
                         help='Dropout probability w.r.t. message dropout for each deep layer. 0: no dropout.')
@@ -64,7 +70,7 @@ def parse_args():
     parser.add_argument('--fine_tuning_l2loss_lambda', type=float, default=1e-5,
                         help='Lambda when calculating Fine Tuning l2 loss.')
 
-    parser.add_argument('--lr', type=float, default=0.001,
+    parser.add_argument('--lr', type=float, default=0.0002,
                         help='Learning rate.')
 
     parser.add_argument('--milestone_score', type=float, default=0.5,
@@ -123,7 +129,7 @@ def parse_args():
         args.n_conv_layers, args.scale_gat_dim, args.use_num_lit, args.use_txt_lit, args.lr,
         args.exp_name)
     args.save_dir = save_dir
-    args.pretrain_model_path = f"{args.save_dir}{args.pretrain_model_path}"
+    args.pretrain_model_path = f"{args.save_dir}{args.test_model}_model_epoch{args.model_epoch}.pth"
 
     return args
 

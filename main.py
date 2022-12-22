@@ -185,6 +185,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         model.to(device)
     # initialize metrics
     best_epoch = -1
+    best_epoch_val = -1
     best_recall = 0
 
     # Ks = eval(args.Ks)
@@ -268,8 +269,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
 
             writer.add_scalar('Accuracy Plot', metrics_dict['accuracy'], epoch)
             writer.add_scalar('Precision Plot', metrics_dict['precision'], epoch)
-            writer.add_scalar('Recall Plot', metrics_dict['r'
-                                                          'ecall'], epoch)
+            writer.add_scalar('Recall Plot', metrics_dict['recall'], epoch)
             writer.add_scalar('F1 Score Plot', metrics_dict['f1'], epoch)
 
             logging.info(metrics_str)
@@ -287,9 +287,9 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
                 break
 
             if metrics_list['recall'].index(best_recall) == len(epoch_list) - 1:
-                save_model(model, args.save_dir, epoch, best_epoch)
+                save_model(model, args.save_dir, epoch, best_epoch_val)
                 logging.info('Save model on epoch {:04d}!'.format(epoch))
-                best_epoch = epoch
+                best_epoch_val = epoch
 
         # Logging every epoch
         logging.info("Fine tuning loss list {}".format(ft_loss_list))
