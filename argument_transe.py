@@ -12,13 +12,6 @@ def parse_args():
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
 
-    parser.add_argument('--use_pretrain', type=int, default=0,
-                        help='0: No pretrain, 1: Pretrain with stored model.')
-    parser.add_argument('--pretrain_embedding_dir', nargs='?', default='data/pretrain/',
-                        help='Path of learned embeddings.')
-    parser.add_argument('--pretrain_model_path', nargs='?', default='trained_model/pre-training_model_epoch99.pth',
-                        help='Path of stored model.')
-
     parser.add_argument('--fine_tuning_batch_size', type=int, default=2048,
                         help='Fine Tuning batch size.')
     parser.add_argument('--pre_training_batch_size', type=int, default=2048,

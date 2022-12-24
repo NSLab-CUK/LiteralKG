@@ -5,6 +5,7 @@ from dataloader import DataLoader
 import torch.optim as optim
 from tqdm import tqdm
 from time import time
+from time import sleep
 from model import LiteralKG
 import sys
 import pandas as pd
@@ -56,7 +57,7 @@ def train(args):
     print("Total parameters: {}".format(pytorch_total_params))
 
     writer = SummaryWriter(
-        comment=f"_{args.aggregation_type}_{args.data_name}_lr{args.lr}-embed-dim{args.embed_dim}_relation-dim{args.relation_dim}_n-layers{args.n_conv_layers}_gat{args.scale_gat_dim}_num-dim{args.use_num_lit}_txt-dim{args.use_txt_lit}")
+        comment=f"_{args.aggregation_type}_{args.data_name}_lr{args.lr}_dropout{args.mess_dropout}-embed-dim{args.embed_dim}_relation-dim{args.relation_dim}_n-layers{args.n_conv_layers}_gat{args.scale_gat_dim}_num-dim{args.use_num_lit}_txt-dim{args.use_txt_lit}")
 
     pt_loss_list = None
 

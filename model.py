@@ -4,8 +4,10 @@ import torch.nn.functional as F
 from gate import Gate, GateMul
 import math
 
+
 def _L2_loss_mean(x):
     return torch.mean(torch.sum(torch.pow(x, 2), dim=1, keepdim=False) / 2.)
+
 
 class Aggregator(nn.Module):
 
@@ -16,7 +18,11 @@ class Aggregator(nn.Module):
         self.dropout = dropout
         self.aggregator_type = aggregator_type
         self.use_residual = use_residual
-        self.weight = nn.Parameter(torch.FloatTensor(self.in_dim,self.in_dim))
+        self.weight = nn.Parameter(torch.FloatTensor(self.in_dim, self.in_dim))
+        if use_residual:
+            self.linear_h0 = nn.Linear(args.embed_dim, self.in_dim)
+            nn.init.xavier_uniform_(self.linear_h0.weight)
+
         self.reset_parameters()
 
         self.message_dropout = nn.Dropout(dropout)
@@ -30,41 +36,44 @@ class Aggregator(nn.Module):
         elif self.aggregator_type == 'graphsage':
             if self.use_residual:
                 self.linear_h = nn.Linear(
-                    self.in_dim*2, self.in_dim)
+                    self.in_dim * 2, self.in_dim)
                 nn.init.xavier_uniform_(self.linear_h.weight)
                 self.linear = nn.Linear(
                     self.in_dim, self.out_dim)
                 nn.init.xavier_uniform_(self.linear.weight)
             else:
                 self.linear = nn.Linear(
-                    self.in_dim*2, self.out_dim)
+                    self.in_dim * 2, self.out_dim)
                 nn.init.xavier_uniform_(self.linear.weight)
 
         elif self.aggregator_type == 'bi-interaction':
             self.linear1 = nn.Linear(
                 self.in_dim, self.out_dim)
             self.linear2 = nn.Linear(
-                self.in_dim, self.out_dim) 
+                self.in_dim, self.out_dim)
             nn.init.xavier_uniform_(self.linear1.weight)
             nn.init.xavier_uniform_(self.linear2.weight)
 
         elif self.aggregator_type == 'gin':
             hidden_dim = args.mlp_hidden_dim
             self.num_layers = args.n_mlp_layers
-            self.weight = nn.Parameter(torch.FloatTensor(hidden_dim,hidden_dim))
+            self.weight = nn.Parameter(torch.FloatTensor(hidden_dim, hidden_dim))
+
+            self.linear_h0 = nn.Linear(args.embed_dim, hidden_dim)
+            nn.init.xavier_uniform_(self.linear_h0.weight)
 
             if self.num_layers == 1:
-                #Linear model
+                # Linear model
                 self.linear = nn.Linear(self.in_dim, self.out_dim)
             else:
-                #Multi-layer model
+                # Multi-layer model
                 self.inp_linear = torch.nn.Linear(self.in_dim, hidden_dim)
                 self.linears = torch.nn.ModuleList()
                 self.batch_norms = torch.nn.ModuleList()
-            
+
                 for layer in range(self.num_layers - 1):
                     self.linears.append(nn.Linear(hidden_dim, hidden_dim))
-                
+
                 self.out_linear = nn.Linear(hidden_dim, self.out_dim)
 
                 for layer in range(self.num_layers - 1):
@@ -77,15 +86,16 @@ class Aggregator(nn.Module):
         self.weight.data.uniform_(-stdv, stdv)
 
     def residual_connection(self, hi, h0, lamda, alpha, l):
-       
+
         if self.use_residual:
-            residual = (1-alpha)*hi+alpha*h0
-            beta = math.log(lamda/l+1)
-            identity_mapping = (1-beta) + beta*self.weight
+            h0 = self.linear_h0(h0)
+            residual = (1 - alpha) * hi + alpha * h0
+            beta = math.log(lamda / l + 1)
+            identity_mapping = (1 - beta) + beta * self.weight
             return torch.mm(residual, identity_mapping)
         else:
             return hi
-            
+
     def forward(self, ego_embeddings, A_in, h0, lamda, alpha, l):
         """
         ego_embeddings:  (n_heads + n_tails, in_dim)
@@ -119,24 +129,22 @@ class Aggregator(nn.Module):
         elif self.aggregator_type == 'gin':
             hi = ego_embeddings + side_embeddings
             h = self.inp_linear(ego_embeddings)
-            h0 = self.inp_linear(h0) 
             layer_embeds = [h]
             if self.num_layers == 1:
-                #Linear model
+                # Linear model
                 hi = self.linear(hi)
             else:
-                #If MLP
+                # If MLP
                 h = self.inp_linear(hi)
-                for layer in range(self.num_layers-1):
+                for layer in range(self.num_layers - 1):
                     h = F.relu(self.batch_norms[layer](self.linears[layer](h)))
                     layer_embeds.append(h)
-            
+
             X = torch.sum(torch.stack(layer_embeds), dim=0)
             X = self.residual_connection(X, h0, lamda, alpha, l)
 
             embeddings = self.activation(self.out_linear(X))
 
-        
         # (n_heads + n_tails, out_dim)
         embeddings = self.message_dropout(embeddings)
         return embeddings
@@ -165,14 +173,15 @@ class LiteralKG(nn.Module):
         self.alpha = args.alpha
         self.lamda = args.lamda
 
-
         self.aggregation_type = args.aggregation_type
         self.n_layers = args.n_conv_layers
-        self.conv_dim_list = [args.embed_dim] + eval(args.conv_dim_list)
+        # self.conv_dim_list = [args.embed_dim] + eval(args.conv_dim_list)
+        self.conv_dim_list = [args.embed_dim] + [args.conv_dim]*self.n_layers
 
         self.total_conv_dim = sum([self.conv_dim_list[i] for i in range(self.n_layers + 1)])
 
-        self.mess_dropout = eval(args.mess_dropout)
+        #self.mess_dropout = eval(args.mess_dropout)
+        self.mess_dropout = [args.mess_dropout]*self.n_layers
 
         self.kg_l2loss_lambda = args.kg_l2loss_lambda
         self.prediction_l2loss_lambda = args.fine_tuning_l2loss_lambda
@@ -278,7 +287,7 @@ class LiteralKG(nn.Module):
         all_embed = [ent_lit_mul_r]
 
         for idx, layer in enumerate(self.aggregator_layers):
-            ent_lit_mul_r = layer(ent_lit_mul_r, self.A_in, ent_lit_mul_r[0], self.lamda, self.alpha, idx+1)
+            ent_lit_mul_r = layer(ent_lit_mul_r, self.A_in, all_embed[0], self.lamda, self.alpha, idx + 1)
             norm_embed = F.normalize(ent_lit_mul_r, p=2, dim=1)
             all_embed.append(norm_embed)
 
@@ -297,7 +306,7 @@ class LiteralKG(nn.Module):
         tail_neg_ids:   (prediction_batch_size)
         """
         all_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
-        
+
         head_embed = all_embed[head_ids]  # (batch_size, concat_dim)
         tail_pos_embed = all_embed[tail_pos_ids]  # (batch_size, concat_dim)
         tail_neg_embed = all_embed[tail_neg_ids]  # (batch_size, concat_dim)
@@ -402,7 +411,6 @@ class LiteralKG(nn.Module):
             r_mul_neg_t)
         loss = triplet_loss + self.kg_l2loss_lambda * l2_loss
 
-
         return loss
 
     def update_attention_batch(self, h_list, t_list, r_idx):
@@ -470,7 +478,7 @@ class LiteralKG(nn.Module):
         return (scores > self.milestone_score).int()
 
     def forward(self, *input, device, mode):
-        self.device=device
+        self.device = device
         if mode == 'fine_tuning':
             return self.calculate_prediction_loss(*input)
         if mode == 'pre_training':

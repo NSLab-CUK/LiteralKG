@@ -48,15 +48,18 @@ def parse_args():
                         help='Using Text Literal Embedding.')
 
     parser.add_argument('--laplacian_type', type=str, default='random-walk',
-
                         help='Specify the type of the adjacency (laplacian) matrix from {symmetric, random-walk}.')
-    parser.add_argument('--aggregation_type', type=str, default='gcn',
+    parser.add_argument('--aggregation_type', type=str, default='bi-interaction',
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction, gin}.')
     parser.add_argument('--conv_dim_list', nargs='?', default='[32, 32, 32, 32, 32, 32, 32, 32, 32]',
                         help='Output sizes of every aggregation layer.')
-    parser.add_argument('--n_conv_layers', type=int, default=7,
+    parser.add_argument('--conv_dim', type=int, default=32,
                         help='Output sizes of every aggregation layer.')
-    parser.add_argument('--mess_dropout', nargs='?', default='[0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]',
+    parser.add_argument('--n_conv_layers', type=int, default=8,
+                        help='Output sizes of every aggregation layer.')
+    parser.add_argument('--mess_dropout_list', nargs='?', default='[0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]',
+                        help='Dropout probability w.r.t. message dropout for each deep layer. 0: no dropout.')
+    parser.add_argument('--mess_dropout', type=float, default=0.1,
                         help='Dropout probability w.r.t. message dropout for each deep layer. 0: no dropout.')
 
     parser.add_argument('--kg_l2loss_lambda', type=float, default=1e-5,
@@ -64,7 +67,7 @@ def parse_args():
     parser.add_argument('--fine_tuning_l2loss_lambda', type=float, default=1e-5,
                         help='Lambda when calculating Fine Tuning l2 loss.')
 
-    parser.add_argument('--lr', type=float, default=0.001,
+    parser.add_argument('--lr', type=float, default=0.0001,
                         help='Learning rate.')
 
     parser.add_argument('--milestone_score', type=float, default=0.5,
@@ -118,10 +121,10 @@ def parse_args():
 
     args.data_name = args.data_name.replace("'", "")
 
-    save_dir = 'trained_model/LiteralKG/{}/embed-dim{}_relation-dim{}_{}_n-layers{}_gat{}_num{}_txt{}_lr{}_pretrain0/{}/'.format(
+    save_dir = 'trained_model/LiteralKG/{}/embed-dim{}_relation-dim{}_{}_n-layers{}_gat{}_num{}_txt{}_lr{}_dropout{}_pretrain0/{}/'.format(
         args.data_name, args.embed_dim, args.relation_dim, args.aggregation_type,
         args.n_conv_layers, args.scale_gat_dim, args.use_num_lit, args.use_txt_lit, args.lr, 
-        args.exp_name)
+        args.mess_dropout, args.exp_name)
     args.save_dir = save_dir
     args.pretrain_model_path = f"{args.save_dir}{args.pretrain_model_path}"
 
