@@ -2,6 +2,7 @@ import os
 import torch
 from utils.metric_utils import *
 from tqdm import tqdm
+import pandas as pd
 
 
 def early_stopping(recall_list, stopping_steps):
@@ -72,4 +73,11 @@ def evaluate(model, head_dict, batch_size, tail_list, device, neg_rate):
     for m in metric_names:
         metrics_dict[m] = np.array(metrics_dict[m]).mean()
     return prediction_scores, metrics_dict
+
+def update_evaluation_value(file_path, colume, row, value):
+    df = pd.read_excel(file_path)
+
+    df[colume][row] = value
+
+    df.to_excel(file_path, sheet_name='data', index=False)
 

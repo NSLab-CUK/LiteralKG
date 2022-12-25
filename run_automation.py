@@ -1,24 +1,58 @@
+import pandas as pd
 import os
 
-lr_list = [0.0001, 0.001, 0.01, 0.1]
-batch_size_list = [2048]
-dropout_list = [ 0.1, 0.5]
-n_layer_list = [2, 4, 8]
-n_dim_list = [16, 32]
-cmd_dict = {}
+def run_pretraining(data, index):
+    cmd = f"python main_pretraining.py --aggregation_type {data['Aggregator'][index]} --n_conv_layers {data['Number Layers'][index]} --lr {data['Learning Rate'][index]} --mess_dropout {data['Dropout'][index]} --conv_dim {data['Convolutional Dim'][index]} --pre_training_batch_size {data['Batch Size'][index]} --evaluation_row {index}"
+    
+    print(f"Running pre training- {index} - {cmd}")
 
-count = 1
-
-for i in batch_size_list:
-    for j in n_dim_list:
-        for k in dropout_list:
-            for v in lr_list:
-                for x in n_layer_list:
-                    cmd_dict[f"python main.py --aggregation_type gcn --n_conv_layers {x} --lr {v} --mess_dropout {k} --conv_dim {j} --pre_training_batch_size {i} --fine_tuning_batch_size {i}"] = count
-                    count += 1
-
-
-for cmd in cmd_dict:
-    print(f"{cmd_dict[cmd]} - {cmd}")
     os.system(cmd)
+
+def run_finetuning(data, index):
+    cmd = f"python main_finetuning.py --aggregation_type {data['Aggregator'][index]} --n_conv_layers {data['Number Layers'][index]} --lr {data['Learning Rate'][index]} --mess_dropout {data['Dropout'][index]} --conv_dim {data['Convolutional Dim'][index]} --fine_tuning_batch_size {data['Batch Size'][index]} --pretrain_epoch {int(data['Best Pretrain'][index])} --evaluation_row {index}"
+        
+    print(f"Running fine tuning - {index} - {cmd}")
+
+    os.system(cmd)
+
+
+def run_testing(data, index):
+    cmd = f"python test.py --aggregation_type {data['Aggregator'][index]} --n_conv_layers {data['Number Layers'][index]} --lr {data['Learning Rate'][index]} --mess_dropout {data['Dropout'][index]} --conv_dim {data['Convolutional Dim'][index]} --model_epoch {data['Best Finetune'][index]} --evaluation_row {index}"
+    
+    print(f"Running test - {index} - {cmd}")
+
+    os.system(cmd)
+
+
+def main():
+    output_path = "outputs"
+    filename = "evaluation.xlsx"
+    
+    data = pd.read_excel(f'{output_path}/{filename}')
+
+    for index, row in data.iterrows():
+
+        data_updated = pd.read_excel(f'{output_path}/{filename}')
+
+        if row["Best Pretrain"] != -1:
+            print(f"Skipping pre-training - {index}")
+        else:
+            run_pretraining(data_updated, index)
+        
+        data_updated = pd.read_excel(f'{output_path}/{filename}')
+
+        if row["Best Finetune"] != -1:
+            print(f"Skipping fine tuning - {index}")
+        else:
+            run_finetuning(data_updated, index)
+
+        data_updated = pd.read_excel(f'{output_path}/{filename}')
+
+        if row["Accuracy"] != 0:
+            print(f"Skipping testing - {index}")
+        else:
+            run_testing(data_updated, index)
+
+if __name__ == '__main__':
+    main()
 

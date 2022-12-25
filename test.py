@@ -31,6 +31,9 @@ def test_model(args):
 
     metrics_str = 'Running test: Total Time {:.1f}s | Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1 [{:.4f}]'.format(
         time() - time1, metrics_dict['accuracy'], metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1'])
+
+    update_evaluation_value(args.evaluation_file, "Accuracy", args.evaluation_row, metrics_dict['accuracy'])
+
     temp_metrics_df = pd.DataFrame(data=[{"metrics": metrics_str}])
     temp_metrics_df.to_csv(
         args.save_dir + '/test_results.tsv', sep='\t', index=False)

@@ -16,14 +16,10 @@ def parse_args():
                         help='0: No pretrain, 1: Pretrain with stored model.')
     parser.add_argument('--pretrain_embedding_dir', nargs='?', default='data/pretrain/',
                         help='Path of learned embeddings.')
-    parser.add_argument('--pretrain_model_path', nargs='?', default='fine-tuning_model_epoch48.pth',
+    parser.add_argument('--pretrain_model', nargs='?', default='pre-training_model_epoch',
                         help='Path of stored model.')
-
-    parser.add_argument('--test_model', nargs='?', default="training",
-                        help='The model to test.')
-
-    parser.add_argument('--model_epoch', nargs='?', default=48,
-                        help='The epoch to test.')
+    parser.add_argument('--pretrain_epoch', type=int, default=100,
+                        help='Path of stored model.')
 
     parser.add_argument('--fine_tuning_batch_size', type=int, default=2048,
                         help='Fine Tuning batch size.')
@@ -54,7 +50,6 @@ def parse_args():
                         help='Using Text Literal Embedding.')
 
     parser.add_argument('--laplacian_type', type=str, default='random-walk',
-
                         help='Specify the type of the adjacency (laplacian) matrix from {symmetric, random-walk}.')
     parser.add_argument('--aggregation_type', type=str, default='bi-interaction',
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction, gin}.')
@@ -74,7 +69,7 @@ def parse_args():
     parser.add_argument('--fine_tuning_l2loss_lambda', type=float, default=1e-5,
                         help='Lambda when calculating Fine Tuning l2 loss.')
 
-    parser.add_argument('--lr', type=float, default=0.0002,
+    parser.add_argument('--lr', type=float, default=0.0001,
                         help='Learning rate.')
 
     parser.add_argument('--milestone_score', type=float, default=0.5,
@@ -127,6 +122,7 @@ def parse_args():
     parser.add_argument('--evaluation_file', nargs='?', default='outputs/evaluation.xlsx',
                         help='The evaluation results file')
     parser.add_argument('--evaluation_row', type=int, default=0, help='The evaluation row in excel result file')
+    
 
     args = parser.parse_args()
 
@@ -137,7 +133,7 @@ def parse_args():
         args.n_conv_layers, args.scale_gat_dim, args.conv_dim, args.pre_training_batch_size, args.use_num_lit, args.use_txt_lit, args.lr, 
         args.mess_dropout, args.exp_name)
     args.save_dir = save_dir
-    args.pretrain_model_path = f"{args.save_dir}{args.test_model}_model_epoch{args.model_epoch}.pth"
+    args.pretrain_model_path = f"{args.save_dir}{args.pretrain_model}{args.pretrain_epoch}.pth"
 
     return args
 
