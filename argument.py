@@ -7,7 +7,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=2022,
                         help='Random seed.')
 
-    parser.add_argument('--data_name', nargs='?', default='Balance_800',
+    parser.add_argument('--data_name', nargs='?', default='Test',
                         help='Choose a dataset')
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')

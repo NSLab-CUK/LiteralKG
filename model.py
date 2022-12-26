@@ -305,11 +305,11 @@ class LiteralKG(nn.Module):
         tail_pos_ids:   (prediction_batch_size)
         tail_neg_ids:   (prediction_batch_size)
         """
-        all_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
+        self.gat_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
 
-        head_embed = all_embed[head_ids]  # (batch_size, concat_dim)
-        tail_pos_embed = all_embed[tail_pos_ids]  # (batch_size, concat_dim)
-        tail_neg_embed = all_embed[tail_neg_ids]  # (batch_size, concat_dim)
+        head_embed = self.gat_embed[head_ids]  # (batch_size, concat_dim)
+        tail_pos_embed = self.gat_embed[tail_pos_ids]  # (batch_size, concat_dim)
+        tail_neg_embed = self.gat_embed[tail_neg_ids]  # (batch_size, concat_dim)
 
         # head_embed = self.gat_embeddings(head_ids)  # (batch_size, concat_dim)
         # tail_pos_embed = self.gat_embeddings(tail_pos_ids)  # (batch_size, concat_dim)
@@ -363,11 +363,11 @@ class LiteralKG(nn.Module):
         #     neg_t)  # (kg_batch_size, embed_dim)
 
         # GAT embeddings
-        all_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
+        self.gat_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
 
-        head_embed = all_embed[h]  # (batch_size, concat_dim)
-        tail_pos_embed = all_embed[pos_t]  # (batch_size, concat_dim)
-        tail_neg_embed = all_embed[neg_t]  # (batch_size, concat_dim)
+        head_embed = self.gat_embed[h]  # (batch_size, concat_dim)
+        tail_pos_embed = self.gat_embed[pos_t]  # (batch_size, concat_dim)
+        tail_neg_embed = self.gat_embed[neg_t]  # (batch_size, concat_dim)
 
         # head_embed = self.gat_embeddings(h)  # (batch_size, concat_dim)
         # tail_pos_embed = self.gat_embeddings(pos_t)  # (batch_size, concat_dim)
@@ -415,17 +415,17 @@ class LiteralKG(nn.Module):
 
     def update_attention_batch(self, h_list, t_list, r_idx):
         r_embed = self.relation_embed.weight[r_idx]
-        # W_r = self.trans_M[r_idx]
+        W_r = self.gat_trans_M[r_idx]
 
-        h_embed = self.entity_embed.weight[h_list]
-        t_embed = self.entity_embed.weight[t_list]
+        h_embed = self.gat_embed[h_list]
+        t_embed = self.gat_embed[t_list]
 
-        # Equation (4)
-        # r_mul_h = torch.matmul(h_embed, W_r)
-        # r_mul_t = torch.matmul(t_embed, W_r)
-        # v_list = torch.sum(r_mul_t * torch.tanh(r_mul_h + r_embed), dim=1)
+        # Equation
+        r_mul_h = torch.matmul(h_embed, W_r)
+        r_mul_t = torch.matmul(t_embed, W_r)
+        v_list = torch.sum(r_mul_t * torch.tanh(r_mul_h + r_embed), dim=1)
 
-        v_list = torch.sum(t_embed * torch.tanh(h_embed + r_embed), dim=1)
+        # v_list = torch.sum(t_embed * torch.tanh(h_embed + r_embed), dim=1)
         return v_list
 
     def update_attention(self, h_list, t_list, r_list, relations):
