@@ -8,5 +8,5 @@ sklearn
 matplotlib
 torchvision
 torch-geometric
-torch_sparse
+openpyxl
 tensorboard

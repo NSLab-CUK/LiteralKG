@@ -45,7 +45,7 @@ def create_excel_files(output_path, filename):
                                         pass
 
                                 else:
-                                    filename_split = filename.split(".")[0].split("training_model_epoch")
+                                    filename_split = filename.split(".pth")[0].split("training_model_epoch")
                                     
                                     if len(filename_split) > 1:
                                         try:
@@ -65,7 +65,7 @@ def create_excel_files(output_path, filename):
 
 def main():
     output_path = "outputs"
-    filename = "test.xlsx"
+    filename = "evaluation.xlsx"
 
     create_excel_files(output_path, filename)
 
