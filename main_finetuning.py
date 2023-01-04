@@ -140,7 +140,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         prediction_loss_value = prediction_total_loss / n_prediction_batch
         if min_loss > prediction_loss_value:
             min_loss = prediction_loss_value
-            save_model(model, args.save_dir, epoch, best_epoch, name="fine-tuning")
+            #save_model(model, args.save_dir, epoch, best_epoch, name="fine-tuning")
             logging.info('Save pre-training model on epoch {:04d}!'.format(epoch))
             best_epoch = epoch
 

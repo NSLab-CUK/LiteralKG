@@ -3,6 +3,7 @@ import torch
 from utils.metric_utils import *
 from tqdm import tqdm
 import pandas as pd
+import platform
 
 
 def early_stopping(recall_list, stopping_steps):
@@ -27,7 +28,7 @@ def save_model(model, model_dir, current_epoch, last_best_epoch=None, name="trai
         old_model_state_file = os.path.join(
             model_dir, '{}_model_epoch{}.pth'.format(name, last_best_epoch))
         if os.path.exists(old_model_state_file):
-            os.system('rm {}'.format(old_model_state_file))
+            os.remove(old_model_state_file)
 
 
 def load_model(model, model_path):
@@ -80,4 +81,33 @@ def update_evaluation_value(file_path, colume, row, value):
     df[colume][row] = value
 
     df.to_excel(file_path, sheet_name='data', index=False)
+
+def run_pretraining(filename, index, device):
+    data= pd.read_excel(filename)
+
+    cmd = f"python main_pretraining.py --aggregation_type {data['Aggregator'][index]} --n_conv_layers {data['Number Layers'][index]} --lr {data['Learning Rate'][index]} --mess_dropout {data['Dropout'][index]} --conv_dim {data['Convolutional Dim'][index]} --pre_training_batch_size {data['Batch Size'][index]} --fine_tuning_batch_size {data['Batch Size'][index]} --evaluation_row {index} --device {device} --evaluation_file {filename}"
+
+    print(f"Running pre training- {index} - {cmd}")
+
+    os.system(cmd)
+
+
+def run_finetuning(filename, index, device):
+    data = pd.read_excel(filename)
+
+    cmd = f"python main_finetuning.py --aggregation_type {data['Aggregator'][index]} --n_conv_layers {data['Number Layers'][index]} --lr {data['Learning Rate'][index]} --mess_dropout {data['Dropout'][index]} --conv_dim {data['Convolutional Dim'][index]} --pre_training_batch_size {data['Batch Size'][index]} --fine_tuning_batch_size {data['Batch Size'][index]} --pretrain_epoch {int(data['Best Pretrain'][index])} --evaluation_row {index} --device {device} --evaluation_file {filename}"
+
+    print(f"Running fine tuning - {index} - {cmd}")
+
+    os.system(cmd)
+
+
+def run_testing(filename, index, device):
+    data = pd.read_excel(filename)
+
+    cmd = f"python test.py --aggregation_type {data['Aggregator'][index]} --n_conv_layers {data['Number Layers'][index]} --lr {data['Learning Rate'][index]} --mess_dropout {data['Dropout'][index]} --conv_dim {data['Convolutional Dim'][index]} --pre_training_batch_size {data['Batch Size'][index]} --fine_tuning_batch_size {data['Batch Size'][index]} --model_epoch {data['Best Finetune'][index]} --evaluation_row {index} --device {device} --evaluation_file {filename}"
+
+    print(f"Running test - {index} - {cmd}")
+
+    os.system(cmd)
 

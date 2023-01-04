@@ -79,7 +79,7 @@ def parse_args():
                         help='Number of epoch.')
     parser.add_argument('--epoch_data_rate', type=float, default=1,
                         help='Sampling data rate for each epoch.')
-    parser.add_argument('--stopping_steps', type=int, default=10,
+    parser.add_argument('--stopping_steps', type=int, default=15,
                         help='Number of epoch for early stopping')
 
     parser.add_argument('--fine_tuning_print_every', type=int, default=500,

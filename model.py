@@ -26,7 +26,8 @@ class Aggregator(nn.Module):
         self.reset_parameters()
 
         self.message_dropout = nn.Dropout(dropout)
-        self.activation = nn.Tanh()
+        self.activation = nn.LeakyReLU()
+        self.layer_normalize = nn.LayerNorm(self.out_dim)
 
         if self.aggregator_type == 'gcn':
             self.linear = nn.Linear(
@@ -120,7 +121,7 @@ class Aggregator(nn.Module):
         elif self.aggregator_type == 'bi-interaction':
             hi_1 = ego_embeddings + side_embeddings
             sum_embeddings = self.residual_connection(hi_1, h0, lamda, alpha, l)
-            sum_embeddings = self.activation(self.linear1(sum_embeddings))
+            sum_embeddings =self.activation(self.linear1(sum_embeddings))
 
             hi_2 = ego_embeddings * side_embeddings
             bi_embeddings = self.residual_connection(hi_2, h0, lamda, alpha, l)
@@ -146,7 +147,7 @@ class Aggregator(nn.Module):
             embeddings = self.activation(self.out_linear(X))
 
         # (n_heads + n_tails, out_dim)
-        embeddings = self.message_dropout(embeddings)
+        embeddings = self.message_dropout(self.layer_normalize(embeddings))
         return embeddings
 
 
@@ -206,7 +207,7 @@ class LiteralKG(nn.Module):
 
         if self.scale_gat_dim is not None:
             self.linear_gat = nn.Linear(self.total_conv_dim, self.scale_gat_dim)
-            self.gat_activation = nn.Tanh()
+            self.gat_activation = nn.LeakyReLU()
             nn.init.xavier_uniform_(self.linear_gat.weight)
             self.gat_trans_M = nn.Parameter(torch.Tensor(
                 self.n_relations, self.scale_gat_dim, self.relation_dim))
@@ -264,22 +265,22 @@ class LiteralKG(nn.Module):
 
         return ent_emb
 
-    def gate_embeddings_v2(self, e):
-        ent_emb = self.entity_embed.weight
+    # def gate_embeddings_v2(self, e):
+    #     ent_emb = self.entity_embed.weight
 
-        ent_emb = ent_emb[e]
+    #     ent_emb = ent_emb[e]
 
-        if self.args.use_num_lit and self.args.use_txt_lit:
-            num_emb = self.numerical_literals_embed[e]
-            txt_emb = self.text_literals_embed[e]
-            return self.emb_mul_lit(ent_emb, num_emb, txt_emb)
-        elif self.args.use_num_lit:
-            num_emb = self.numerical_literals_embed[e]
-            return self.emb_num_lit(ent_emb, num_emb)
-        elif self.args.use_txt_lit:
-            txt_emb = self.text_literals_embed[e]
-            return self.emb_txt_lit(ent_emb, txt_emb)
-        return ent_emb
+    #     if self.args.use_num_lit and self.args.use_txt_lit:
+    #         num_emb = self.numerical_literals_embed[e]
+    #         txt_emb = self.text_literals_embed[e]
+    #         return self.emb_mul_lit(ent_emb, num_emb, txt_emb)
+    #     elif self.args.use_num_lit:
+    #         num_emb = self.numerical_literals_embed[e]
+    #         return self.emb_num_lit(ent_emb, num_emb)
+    #     elif self.args.use_txt_lit:
+    #         txt_emb = self.text_literals_embed[e]
+    #         return self.emb_txt_lit(ent_emb, txt_emb)
+    #     return ent_emb
 
     def gat_embeddings(self):
         ent_lit_mul_r = self.gate_embeddings()
@@ -415,17 +416,16 @@ class LiteralKG(nn.Module):
 
     def update_attention_batch(self, h_list, t_list, r_idx):
         r_embed = self.relation_embed.weight[r_idx]
-        W_r = self.gat_trans_M[r_idx]
 
-        h_embed = self.gat_embed[h_list]
-        t_embed = self.gat_embed[t_list]
+        h_embed = self.entity_embed.weight[h_list]
+        t_embed = self.entity_embed.weight[t_list]
 
         # Equation
-        r_mul_h = torch.matmul(h_embed, W_r)
-        r_mul_t = torch.matmul(t_embed, W_r)
-        v_list = torch.sum(r_mul_t * torch.tanh(r_mul_h + r_embed), dim=1)
+        # r_mul_h = torch.matmul(h_embed, W_r)
+        # r_mul_t = torch.matmul(t_embed, W_r)
+        # v_list = torch.sum(r_mul_t * torch.tanh(r_mul_h + r_embed), dim=1)
 
-        # v_list = torch.sum(t_embed * torch.tanh(h_embed + r_embed), dim=1)
+        v_list = torch.sum(t_embed * torch.tanh(h_embed + r_embed), dim=1)
         return v_list
 
     def update_attention(self, h_list, t_list, r_list, relations):

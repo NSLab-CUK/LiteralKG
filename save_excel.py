@@ -11,7 +11,7 @@ def create_excel_files(output_path, filename):
     txt_dim = True
     columns = ["Aggregator", "Number Layers", "Learning Rate", "Dropout", "Convolutional Dim", "Batch Size", "Best Pretrain", "Best Finetune", "Accuracy"]
 
-    lr_list = [0.0001, 0.001, 0.01, 0.1]
+    lr_list = [0.0001, 0.001, 0.01]
     batch_size_list = [2048]
     dropout_list = [ 0.1, 0.5]
     n_layer_list = [2, 4, 8]
@@ -65,7 +65,7 @@ def create_excel_files(output_path, filename):
 
 def main():
     output_path = "outputs"
-    filename = "evaluation.xlsx"
+    filename = "evaluation_gcn_248.xlsx"
 
     create_excel_files(output_path, filename)
 
