@@ -70,7 +70,7 @@ class Aggregator(nn.Module):
                 # Multi-layer model
                 self.inp_linear = torch.nn.Linear(self.in_dim, hidden_dim)
                 self.linears = torch.nn.ModuleList()
-                self.batch_norms = torch.nn.ModuleList()
+                self.mlp_layer_norms = torch.nn.ModuleList()
 
                 for layer in range(self.num_layers - 1):
                     self.linears.append(nn.Linear(hidden_dim, hidden_dim))
@@ -78,7 +78,8 @@ class Aggregator(nn.Module):
                 self.out_linear = nn.Linear(hidden_dim, self.out_dim)
 
                 for layer in range(self.num_layers - 1):
-                    self.batch_norms.append(nn.BatchNorm1d((hidden_dim)))
+                    self.mlp_layer_norms.append(nn.LayerNorm(hidden_dim))
+
         else:
             raise NotImplementedError
 
@@ -97,7 +98,7 @@ class Aggregator(nn.Module):
         else:
             return hi
 
-    def forward(self, ego_embeddings, A_in, h0, lamda, alpha, l):
+    def forward(self, ego_embeddings, A_in, all_layers, lamda, alpha, l):
         """
         ego_embeddings:  (n_heads + n_tails, in_dim)
         A_in:            (n_heads + n_tails, n_heads + n_tails), torch.sparse.FloatTensor
@@ -106,25 +107,25 @@ class Aggregator(nn.Module):
 
         if self.aggregator_type == 'gcn':
             hi = ego_embeddings + side_embeddings
-            embeddings = self.residual_connection(hi, h0, lamda, alpha, l)
+            embeddings = self.residual_connection(hi, all_layers[0], lamda, alpha, l)
             embeddings = self.activation(self.linear(embeddings))
 
         elif self.aggregator_type == 'graphsage':
             hi = torch.cat([ego_embeddings, side_embeddings], dim=1)
             if self.use_residual:
                 hi = self.linear_h(hi)
-                embeddings = self.residual_connection(hi, h0, lamda, alpha, l)
+                embeddings = self.residual_connection(hi, all_layers[0], lamda, alpha, l)
             else:
                 embeddings = hi
             embeddings = self.activation(self.linear(embeddings))
 
         elif self.aggregator_type == 'bi-interaction':
             hi_1 = ego_embeddings + side_embeddings
-            sum_embeddings = self.residual_connection(hi_1, h0, lamda, alpha, l)
+            sum_embeddings = self.residual_connection(hi_1, all_layers[0], lamda, alpha, l)
             sum_embeddings =self.activation(self.linear1(sum_embeddings))
 
             hi_2 = ego_embeddings * side_embeddings
-            bi_embeddings = self.residual_connection(hi_2, h0, lamda, alpha, l)
+            bi_embeddings = self.residual_connection(hi_2, all_layers[0], lamda, alpha, l)
             bi_embeddings = self.activation(self.linear2(bi_embeddings))
             embeddings = bi_embeddings + sum_embeddings
         elif self.aggregator_type == 'gin':
@@ -134,20 +135,32 @@ class Aggregator(nn.Module):
             if self.num_layers == 1:
                 # Linear model
                 hi = self.linear(hi)
+                layer_embeds.append(hi)
             else:
                 # If MLP
                 h = self.inp_linear(hi)
                 for layer in range(self.num_layers - 1):
-                    h = F.relu(self.batch_norms[layer](self.linears[layer](h)))
+                    h = self.mlp_layer_norms[layer](self.activation(self.linears[layer](h)))
                     layer_embeds.append(h)
 
             X = torch.sum(torch.stack(layer_embeds), dim=0)
-            X = self.residual_connection(X, h0, lamda, alpha, l)
+            X = self.residual_connection(X, all_layers[0], lamda, alpha, l)
 
             embeddings = self.activation(self.out_linear(X))
 
+            if len(all_layers) > 1:
+                layer_embeds = [self.layer_normalize(embeddings)]
+
+                for index, layer in enumerate(all_layers):
+                    if index != 0:
+                        layer_embeds.append(layer)
+
+                embeddings = torch.sum(torch.stack(layer_embeds), dim=0)
+
         # (n_heads + n_tails, out_dim)
         embeddings = self.message_dropout(self.layer_normalize(embeddings))
+        
+        
         return embeddings
 
 
@@ -288,7 +301,7 @@ class LiteralKG(nn.Module):
         all_embed = [ent_lit_mul_r]
 
         for idx, layer in enumerate(self.aggregator_layers):
-            ent_lit_mul_r = layer(ent_lit_mul_r, self.A_in, all_embed[0], self.lamda, self.alpha, idx + 1)
+            ent_lit_mul_r = layer(ent_lit_mul_r, self.A_in, all_embed, self.lamda, self.alpha, idx + 1)
             norm_embed = F.normalize(ent_lit_mul_r, p=2, dim=1)
             all_embed.append(norm_embed)
 

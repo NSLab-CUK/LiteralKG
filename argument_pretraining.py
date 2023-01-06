@@ -49,7 +49,7 @@ def parse_args():
 
     parser.add_argument('--laplacian_type', type=str, default='random-walk',
                         help='Specify the type of the adjacency (laplacian) matrix from {symmetric, random-walk}.')
-    parser.add_argument('--aggregation_type', type=str, default='bi-interaction',
+    parser.add_argument('--aggregation_type', type=str, default='gcn',
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction, gin}.')
     parser.add_argument('--conv_dim_list', nargs='?', default='[32, 32, 32, 32, 32, 32, 32, 32, 32]',
                         help='Output sizes of every aggregation layer.')
@@ -114,7 +114,7 @@ def parse_args():
     parser.add_argument('--alpha', type=float, default=0.1, help='alpha_l')
     parser.add_argument('--lamda', type=float, default=0.5, help='lamda.')
 
-    parser.add_argument('--n_mlp_layers', type=int, default=3, help='The number of GIN hidden layer.')
+    parser.add_argument('--n_mlp_layers', type=int, default=2, help='The number of GIN hidden layer.')
     parser.add_argument('--mlp_hidden_dim', type=int, default=64, help='The dimension of GIN hidden layer.')
 
     parser.add_argument('--evaluation_file', nargs='?', default='outputs/evaluation.xlsx',
