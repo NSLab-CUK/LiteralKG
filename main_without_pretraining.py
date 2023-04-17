@@ -11,7 +11,7 @@ import pandas as pd
 from torch.utils.tensorboard import SummaryWriter
 
 import torch.nn as nn
-from argument_finetuning import parse_args
+from argument_without_pretraining import parse_args
 
 from utils.log_utils import *
 from utils.metric_utils import *
@@ -52,10 +52,7 @@ def train(args):
     print("Total parameters: {}".format(pytorch_total_params))
 
     writer = SummaryWriter(
-        comment=f"_{args.aggregation_type}_{args.data_name}_lr{args.lr}_dropout{args.mess_dropout}-embed-dim{args.embed_dim}_relation-dim{args.relation_dim}_n-layers{args.n_conv_layers}_gat{args.scale_gat_dim}_conv{args.conv_dim}_bs{args.pre_training_batch_size}_num-dim{args.use_num_lit}_txt-dim{args.use_txt_lit}_fine_tuning")
-
-    logging.info("----- USE PRE-TRAINING MODEL -----")
-    model = load_model(model, args.pretrain_model_path)
+        comment=f"_{args.aggregation_type}_{args.data_name}_lr{args.lr}_dropout{args.mess_dropout}-embed-dim{args.embed_dim}_relation-dim{args.relation_dim}_n-layers{args.n_conv_layers}_gat{args.scale_gat_dim}_conv{args.conv_dim}_bs{args.pre_training_batch_size}_num-dim{args.use_num_lit}_txt-dim{args.use_txt_lit}_without_pre_training")
 
     ft_loss_list, ft_time_training = fine_tuning_train(model, data, fine_tuning_optimizer, device, args, writer)
 
@@ -139,7 +136,7 @@ def fine_tuning_train(model, data, optimizer, device, args, writer):
         if min_loss > prediction_loss_value:
             min_loss = prediction_loss_value
             #save_model(model, args.save_dir, epoch, best_epoch, name="fine-tuning")
-            logging.info('Save pre-training model on epoch {:04d}!'.format(epoch))
+            logging.info('Save training model on epoch {:04d}!'.format(epoch))
             best_epoch = epoch
 
         ft_loss_list.append(prediction_loss_value)

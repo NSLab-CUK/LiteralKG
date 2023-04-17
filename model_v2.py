@@ -262,6 +262,22 @@ class LiteralKG(nn.Module):
 
         self.milestone_score = args.milestone_score
 
+        if self.scale_gat_dim is not None:
+            self.mlp_layer_1 = nn.Linear(self.scale_gat_dim, 128)
+            self.mlp_layer_2 = nn.Linear(128, 64)
+            self.mlp_layer_3 = nn.Linear(64, 1)
+        else:
+            self.mlp_layer_1 = nn.Linear(self.total_conv_dim, 128)
+            self.mlp_layer_2 = nn.Linear(128, 64)
+            self.mlp_layer_3 = nn.Linear(64, 1)
+
+        nn.init.xavier_uniform_(self.mlp_layer_1.weight)
+        nn.init.xavier_uniform_(self.mlp_layer_2.weight)
+        nn.init.xavier_uniform_(self.mlp_layer_3.weight)
+
+        self.mlp_activation = nn.LeakyReLU()
+        self.output_activation = nn.LeakyReLU()
+
     def gate_embeddings(self):
         ent_emb = self.entity_embed.weight
 
@@ -277,23 +293,6 @@ class LiteralKG(nn.Module):
             return self.emb_txt_lit(ent_emb, self.text_literals_embed)
 
         return ent_emb
-
-    # def gate_embeddings_v2(self, e):
-    #     ent_emb = self.entity_embed.weight
-
-    #     ent_emb = ent_emb[e]
-
-    #     if self.args.use_num_lit and self.args.use_txt_lit:
-    #         num_emb = self.numerical_literals_embed[e]
-    #         txt_emb = self.text_literals_embed[e]
-    #         return self.emb_mul_lit(ent_emb, num_emb, txt_emb)
-    #     elif self.args.use_num_lit:
-    #         num_emb = self.numerical_literals_embed[e]
-    #         return self.emb_num_lit(ent_emb, num_emb)
-    #     elif self.args.use_txt_lit:
-    #         txt_emb = self.text_literals_embed[e]
-    #         return self.emb_txt_lit(ent_emb, txt_emb)
-    #     return ent_emb
 
     def gat_embeddings(self):
         ent_lit_mul_r = self.gate_embeddings()
@@ -313,7 +312,7 @@ class LiteralKG(nn.Module):
             # (n_heads + n_tails, concat_dim)
             return torch.cat(all_embed, dim=1)
 
-    def calculate_prediction_loss(self, head_ids, tail_pos_ids, tail_neg_ids):
+    def calculate_prediction_score(self, head_ids, tail_pos_ids, tail_neg_ids):
         """
         head_ids:       (prediction_batch_size)
         tail_pos_ids:   (prediction_batch_size)
@@ -325,41 +324,18 @@ class LiteralKG(nn.Module):
         tail_pos_embed = self.gat_embed[tail_pos_ids]  # (batch_size, concat_dim)
         tail_neg_embed = self.gat_embed[tail_neg_ids]  # (batch_size, concat_dim)
 
-        # head_embed = self.gat_embeddings(head_ids)  # (batch_size, concat_dim)
-        # tail_pos_embed = self.gat_embeddings(tail_pos_ids)  # (batch_size, concat_dim)
-        # tail_neg_embed =self.gat_embeddings(tail_neg_ids)  # (batch_size, concat_dim)
+        x_pos = torch.cat((head_embed, tail_pos_embed), 1)
+        x_neg = torch.cat((head_embed, tail_neg_embed), 1)
+        x = torch.cat((x_pos, x_neg), 0)
 
-        pos_score = torch.sum(head_embed * tail_pos_embed,
-                              dim=1)  # (batch_size)
-        # print("Compare the positive score and negative score")
-        # print(pos_score)
-
-        neg_score = torch.sum(head_embed * tail_neg_embed,
-                              dim=1)  # (batch_size)
-        # print(neg_score)
-
-        # prediction_loss = F.softplus(neg_score - pos_score)
-        prediction_loss = (-1.0) * F.logsigmoid(pos_score - neg_score)
-        prediction_loss = torch.mean(prediction_loss)
-
-        l2_loss = _L2_loss_mean(
-            head_embed) + _L2_loss_mean(tail_pos_embed) + _L2_loss_mean(tail_neg_embed)
-        loss = prediction_loss + self.prediction_l2loss_lambda * l2_loss
-        return loss
-
-    # def embed_num_literal(self):
-    #     embedding_table = torch.zeros((self.n_entities, self.n_num_lit), device='cuda:0', dtype=torch.long)
-    #     for item in self.numerical_literals:
-    #         embedding_table[item] = torch.tensor(self.numerical_literals[item])
-
-    #     return embedding_table
-
-    # def embed_txt_literal(self):
-    #     embedding_table = torch.zeros((self.n_entities, self.n_txt_lit), device='cuda:0', dtype=torch.long)
-    #     for item in self.text_literals:
-    #         embedding_table[item] = torch.tensor(self.text_literals[item])
-
-    #     return embedding_table
+        x = self.mlp_layer_1(x)
+        x = self.mlp_activation(x)
+        x = self.mlp_layer_2(x)
+        x = self.mlp_activation(x)
+        x = self.mlp_layer_3(x)
+        out = self.output_activation(x)
+        
+        return out
 
     def calc_triplet_loss(self, h, r, pos_t, neg_t):
         """
@@ -370,11 +346,6 @@ class LiteralKG(nn.Module):
         """
         r_embed = self.relation_embed(r)  # (kg_batch_size, relation_dim)
         W_r = self.gat_trans_M[r]  # (kg_batch_size, embed_dim, relation_dim)
-        # h_embed = self.entity_embed(h)  # (kg_batch_size, embed_dim)
-        # pos_t_embed = self.entity_embed(
-        #     pos_t)  # (kg_batch_size, embed_dim)
-        # neg_t_embed = self.entity_embed(
-        #     neg_t)  # (kg_batch_size, embed_dim)
 
         # GAT embeddings
         self.gat_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
@@ -383,29 +354,12 @@ class LiteralKG(nn.Module):
         tail_pos_embed = self.gat_embed[pos_t]  # (batch_size, concat_dim)
         tail_neg_embed = self.gat_embed[neg_t]  # (batch_size, concat_dim)
 
-        # head_embed = self.gat_embeddings(h)  # (batch_size, concat_dim)
-        # tail_pos_embed = self.gat_embeddings(pos_t)  # (batch_size, concat_dim)
-        # tail_neg_embed = self.gat_embeddings(neg_t)  # (batch_size, concat_dim)
-
         r_mul_h = torch.bmm(head_embed.unsqueeze(1), W_r).squeeze(
             1)  # (kg_batch_size, relation_dim)
         r_mul_pos_t = torch.bmm(tail_pos_embed.unsqueeze(1), W_r).squeeze(
             1)  # (kg_batch_size, relation_dim)
         r_mul_neg_t = torch.bmm(tail_neg_embed.unsqueeze(1), W_r).squeeze(
             1)  # (kg_batch_size, relation_dim)
-
-        # h_lit_embed = self.entity_literal_embed(h, h_embed)  # Gate(heads, head_embeddings)
-        # pos_t_lit_embed = self.entity_literal_embed(
-        #     pos_t, pos_t_embed)  # Gate(pos_tails, pos_tail_embeddings)
-        # neg_t_lit_embed = self.entity_literal_embed(
-        #     neg_t, neg_t_embed)  # Gate(neg_tails, neg_tail_embeddings)
-
-        # r_mul_h = torch.bmm(h_lit_embed.unsqueeze(1), W_r).squeeze(
-        #     1)  # (kg_batch_size, relation_dim)
-        # r_mul_pos_t = torch.bmm(pos_t_lit_embed.unsqueeze(1), W_r).squeeze(
-        #     1)  # (kg_batch_size, relation_dim)
-        # r_mul_neg_t = torch.bmm(neg_t_lit_embed.unsqueeze(1), W_r).squeeze(
-        #     1)  # (kg_batch_size, relation_dim)
 
         # Trans R
 
@@ -471,64 +425,34 @@ class LiteralKG(nn.Module):
         self.A_in.data = A_in.to(device)
 
     def calc_score(self, head_ids, tail_ids):
-        all_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
-        head_embed = all_embed[head_ids]  # (n_heads, concat_dim)
-        tail_embed = all_embed[tail_ids]  # (n_items, concat_dim)
-
-        # head_embed = self.gat_embeddings(head_ids)  # (n_heads, concat_dim)
-        # tail_embed = self.gat_embeddings(tail_ids)  # (n_items, concat_dim)
-
-        prediction_score = torch.matmul(
-            head_embed, tail_embed.transpose(0, 1))  # (n_heads, n_items)
-
-        # print(prediction_score)
-
-        return prediction_score
-
-    def predict_links(self, head_ids, tail_ids):
-        scores = self.calc_score(head_ids, tail_ids)
-        scores = (scores - torch.min(scores)) / (torch.max(scores) - torch.min(scores))
-        return (scores > self.milestone_score).int()
-    
-    def get_final_embeddings(self, entity_ids):
-        all_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
-        entity_embed = all_embed[entity_ids]  # (n_heads, concat_dim)
-
-        return entity_embed
-    
-    def initialize_MLP(self):
-        self.fc1 = nn.Linear(self.scale_gat_dim*2, 128)
-        self.norm1 = nn.BatchNorm1d(128)
-        self.fc2 = nn.Linear(128, 64)
-        self.norm2 = nn.BatchNorm1d(64)
-        self.fc3 = nn.Linear(64,1)
-
-    def train_MLP(self, head_ids, tail_ids):
         self.gat_embed = self.gat_embeddings()  # (n_heads + n_tails, concat_dim)
 
         head_embed = self.gat_embed[head_ids]  # (batch_size, concat_dim)
         tail_embed = self.gat_embed[tail_ids]  # (batch_size, concat_dim)
 
-        x = torch.cat([head_embed, tail_embed],
-                              dim=1)  # (batch_size)
+        x = torch.cat((head_embed, tail_embed), 1)
 
-        x = self.norm1(torch.relu(self.fc1(x)))
-        x = self.norm2(torch.relu(self.fc2(x)))
-        x = torch.sigmoid(self.fc3(x))
+        x = self.mlp_layer_1(x)
+        x = self.mlp_activation(x)
+        x = self.mlp_layer_2(x)
+        x = self.mlp_activation(x)
+        x = self.mlp_layer_3(x)
+        out = self.output_activation(x)
 
-        return x
-    
+        return out
+
+    def predict_links(self, head_ids, tail_ids):
+        scores = self.calc_score(head_ids, tail_ids)
+        print(scores)
+        return (scores > self.milestone_score).int()
+
     def forward(self, *input, device, mode):
         self.device = device
         if mode == 'fine_tuning':
-            return self.calculate_prediction_loss(*input)
+            return self.calculate_prediction_score(*input)
         if mode == 'pre_training':
             return self.calc_triplet_loss(*input)
         if mode == 'update_att':
             return self.update_attention(*input)
         if mode == 'predict':
             return self.predict_links(*input)
-        if mode == 'mlp':
-            return self.train_MLP(*input)
-
-    

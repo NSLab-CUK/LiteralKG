@@ -7,7 +7,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=2022,
                         help='Random seed.')
 
-    parser.add_argument('--data_name', nargs='?', default='Balance_100',
+    parser.add_argument('--data_name', nargs='?', default='Balance_800',
                         help='Choose a dataset')
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
@@ -35,7 +35,7 @@ def parse_args():
                         help='head / entity Embedding size.')
     parser.add_argument('--relation_dim', type=int, default=300,
                         help='Relation Embedding size.')
-    parser.add_argument('--scale_gat_dim', type=int, default=300,
+    parser.add_argument('--scale_gat_dim', type=int, default=256,
                         help='Scale gat concatenation.')
     parser.add_argument('--num_lit_dim', type=int, default=2,
                         help='Numerical Literal Embedding size.')
@@ -127,7 +127,7 @@ def parse_args():
 
     args.data_name = args.data_name.replace("'", "")
 
-    save_dir = 'trained_model/LiteralKG/{}/embed-dim{}_relation-dim{}_{}_n-layers{}_gat{}_conv{}_bs{}_num{}_txt{}_lr{}_dropout{}_pretrain0_v5/{}/'.format(
+    save_dir = 'trained_model/LiteralKG/{}/embed-dim{}_relation-dim{}_{}_n-layers{}_gat{}_conv{}_bs{}_num{}_txt{}_lr{}_dropout{}_without_pretrain/{}/'.format(
         args.data_name, args.embed_dim, args.relation_dim, args.aggregation_type,
         args.n_conv_layers, args.scale_gat_dim, args.conv_dim, args.pre_training_batch_size, args.use_num_lit, args.use_txt_lit, args.lr, 
         args.mess_dropout, args.exp_name)

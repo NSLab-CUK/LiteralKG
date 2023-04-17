@@ -34,7 +34,7 @@ def generate_test_data(train2id, test_head_dict, head_ids, tail_ids, neg_rate):
 
     data = {
         "train2id": train2id,
-        "approved_example": approved_example,
+        "test_data": approved_example,
     }
 
     result_path = f"outputs"
@@ -61,8 +61,9 @@ def generate_test_data(train2id, test_head_dict, head_ids, tail_ids, neg_rate):
                 f.write(str(key) + "\n")
         f.close()
 
-def evaluate(train, head_dict, batch_size, tail_list, device, neg_rate):
+def evaluate(train, head_dict, tail_list, device, neg_rate):
     head_ids = list(head_dict.keys())
+    batch_size = len(head_ids)
 
     head_ids_batches = [head_ids[i: i + batch_size]
                         for i in range(0, len(head_ids), batch_size)]
@@ -81,7 +82,7 @@ def test_model(args):
     # load data
     data = DataLoader(args)
 
-    evaluate(data.train_data , data.test_head_dict, data.test_batch_size, data.prediction_tail_ids, device, neg_rate=args.test_neg_rate)
+    evaluate(data.train_data , data.test_head_dict, data.prediction_tail_ids, device, neg_rate=1)
 
 
 def main():

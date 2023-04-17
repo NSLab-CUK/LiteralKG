@@ -22,63 +22,34 @@ class DataLoaderBase(object):
         self.device = args.device
 
         self.data_dir = os.path.join(args.data_dir, args.data_name)
-        self.train_file = os.path.join(self.data_dir, 'fine_tuning_train.txt')
-        self.test_file = os.path.join(self.data_dir, 'fine_tuning_test.txt')
-        self.kg_file = os.path.join(self.data_dir, "pre_training_train.txt")
-
-        self.numeric_literal_files = [
-            'age_dict.txt', 'weight_dict.txt']
-        self.text_literal_files = ['cc_dict.pickle', 'disease_dict.pickle',
-                                   'memo_dict.pickle', 'prescription_dict.pickle', 'treatment_dict.pickle']
+        self.train_file = os.path.join(self.data_dir, 'prediction_train.txt')
+        self.test_file = os.path.join(self.data_dir, 'prediction_test.txt')
+        self.val_file = os.path.join(self.data_dir, 'prediction_val.txt')
 
         self.prediction_dict_file = args.prediction_dict_file
         self.prediction_tail_ids = self.load_prediction_id_list()
 
-        self.embedding_path = os.path.join(self.data_dir, 'min_model_121.ckpt')
-
-        self.text_dim = args.txt_lit_dim
-        self.numeric_dim = args.num_lit_dim
         self.entity_dim = args.embed_dim
+
         self.relation_dim = args.relation_dim
-        self.total_ent = args.total_ent
-        self.total_rel = args.total_rel
 
         self.pre_training_neg_rate = args.pre_training_neg_rate
         self.fine_tuning_neg_rate = args.fine_tuning_neg_rate
-
-
-        self.train_file = os.path.join(self.data_dir, 'prediction_train.txt')
-        self.test_file = os.path.join(self.data_dir, 'prediction_test.txt')
-        self.val_file = os.path.join(self.data_dir, 'prediction_val.txt')
         
-        self.train_data_heads, self.train_data_tails, self.train_data_labels = self.load_prediction_data_with_label(self.train_file)
-        self.val_data_heads, self.val_data_tails, self.val_data_labels = self.load_prediction_data_with_label(self.val_file)
-        self.test_data_heads, self.test_data_tails, self.test_data_labels = self.load_prediction_data_with_label(self.test_file)        
-
-        self.prediction_train_data, head_dict = self.load_prediction_data(
-            self.train_file)
-        self.train_head_dict = dict(list(head_dict.items())[:int(args.train_data_rate*len(head_dict))])
-        self.val_head_dict = dict(list(head_dict.items())[int(args.train_data_rate*len(head_dict)):])
-        self.prediction_test_data, self.test_head_dict = self.load_prediction_data(self.test_file)
+        self.test_data_heads, self.test_data_tails, self.test_data_labels = self.load_prediction_data(self.test_file)
         self.analize_prediction()
 
-        self.numeric_embed = {}
-        self.text_embed = {}
-        self.load_attributes()
 
-        # if self.use_pretrain == 1:
-        #     self.load_pretrained_data()
+    def load_prediction_id_list(self):
+        file = open(os.path.join(
+            self.data_dir, self.prediction_dict_file), 'rb')
 
-    # def load_transr(self):
-    #     self.transr.load_checkpoint(self.embedding_path)
+        # dump information to that file
+        data = pickle.load(file)
 
-    # def get_entity_embeddings(self, ent_id):
-    #     return self.transr.get_parameters()['ent_embeddings.weight'][ent_id]
+        return list(data)
 
-    # def load_entity_embedding(self):
-    #     self.get_entity_embeddings(0)
-
-    def load_prediction_data_with_label(self, filename):
+    def load_prediction_data(self, filename):
         heads = []
         tails = []
         labels = []
@@ -95,84 +66,9 @@ class DataLoaderBase(object):
 
         head_tensors = torch.LongTensor(heads)
         tail_tensors = torch.LongTensor(tails)
-        label_tensors = torch.FloatTensor(labels)
+        label_tensors = torch.LongTensor(labels)
 
         return head_tensors, tail_tensors, label_tensors
-
-    def load_prediction_id_list(self):
-        file = open(os.path.join(
-            self.data_dir, self.prediction_dict_file), 'rb')
-
-        # dump information to that file
-        data = pickle.load(file)
-
-        return list(data)
-
-    def load_attributes(self):
-        count = 0
-        for filename in self.numeric_literal_files:
-            lines = open(os.path.join(
-                self.data_dir, filename), 'r').readlines()
-            max_value = 0
-            dict_attr = {}
-            for l in lines:
-                
-                data = l.split("\t")
-                
-                if (len(data) > 1):
-                    value = float(data[1].strip("\n"))
-                    dict_attr[int(data[0])] = value + 1
-                    if max_value < value:
-                        max_value = value
-
-            for item in dict_attr:
-                num_arr = np.zeros(self.numeric_dim)
-                if(max_value != 0):
-                    num_arr[count] = dict_attr[item] / max_value
-                if self.args.use_num_lit:
-                    self.numeric_embed[item] = num_arr
-                if self.args.use_txt_lit:
-                    self.text_embed[item] = np.zeros(self.text_dim)
-
-            count += 1
-
-        if self.args.use_txt_lit:
-            for filename in self.text_literal_files:
-                file = open(os.path.join(
-                    self.data_dir, filename), 'rb')
-
-                # dump information to that file
-                data = pickle.load(file)
-
-                for item in data:
-                    if self.args.use_num_lit:
-                        self.numeric_embed[item] = np.zeros(self.numeric_dim)
-                        
-                    if self.args.use_txt_lit:
-                        self.text_embed[item] = data[item]
-
-    def load_prediction_data(self, filename):
-        head = []
-        tail = []
-        head_dict = dict()
-
-        lines = open(filename, 'r').readlines()
-        for l in lines:
-            tmp = l.strip()
-            inter = [int(i) for i in tmp.split()]
-
-            if len(inter) > 1:
-                head_id, tail_ids = inter[0], inter[1:]
-                tail_ids = list(set(tail_ids))
-
-                for tail_id in tail_ids:
-                    head.append(head_id)
-                    tail.append(tail_id)
-                head_dict[head_id] = tail_ids
-
-        heads = np.array(head, dtype=np.int32)
-        tails = np.array(tail, dtype=np.int32)
-        return (heads, tails), head_dict
 
     def analize_prediction(self):
         self.n_heads = max(max(self.prediction_train_data[0]), max(
@@ -329,41 +225,18 @@ class DataLoaderBase(object):
 
         return results
 
-    # def load_pretrained_data(self):
-    #     pre_model = 'mf'
-    #     pretrain_path = '%s/%s/%s.npz' % (self.pretrain_embedding_dir,
-    #                                       self.data_name, pre_model)
-    #     pretrain_data = np.load(pretrain_path)
-    #     self.head_pre_embed = pretrain_data['head_embed']
-    #     self.tail_pre_embed = pretrain_data['tail_embed']
-
-    #     assert self.head_pre_embed.shape[0] == self.n_heads
-    #     assert self.tail_pre_embed.shape[0] == self.n_tails
-    #     assert self.head_pre_embed.shape[1] == self.args.embed_dim
-    #     assert self.tail_pre_embed.shape[1] == self.args.embed_dim
-
 class DataLoader(DataLoaderBase):
 
     def __init__(self, args, logging):
         super().__init__(args, logging)
-        self.fine_tuning_batch_size = int(args.fine_tuning_batch_size /  self.fine_tuning_neg_rate)
-        self.pre_training_batch_size = int(args.pre_training_batch_size / self.pre_training_neg_rate)
+        self.fine_tuning_batch_size = int(args.batch_size /  self.fine_tuning_neg_rate)
+        self.pre_training_batch_size = int(args.batch_size / self.pre_training_neg_rate)
         self.test_batch_size = args.test_batch_size
-
-        self.num_embedding_table = None
-        self.text_embedding_table = None
 
         graph_data = self.load_graph(self.kg_file)
         self.construct_data(graph_data)
         self.training_tails = graph_data['t']
-        self.embed_num_literal()
-        self.embed_txt_literal()
         self.print_info(logging)
-
-
-        self.laplacian_type = args.laplacian_type
-        self.create_adjacency_dict()
-        self.create_laplacian_dict()
 
 
     def construct_data(self, graph_data):
@@ -374,13 +247,7 @@ class DataLoader(DataLoaderBase):
         self.n_relations = len(set(graph_data['r']))
 
         # add interactions to kg data
-        # prediction_train_triples = pd.DataFrame(
-        #     np.zeros((self.n_prediction_training, 3), dtype=np.int32), columns=['h', 'r', 't'])
-        # prediction_train_triples['h'] = self.prediction_train_data[0]
-        # prediction_train_triples['t'] = self.prediction_train_data[1]
 
-        # self.pre_train_data = pd.concat(
-        #     [graph_data, prediction_train_triples], ignore_index=True)
         self.pre_train_data = graph_data
         self.n_pre_training = len(self.pre_train_data)
 
@@ -406,93 +273,12 @@ class DataLoader(DataLoaderBase):
         self.n_tails = max(max(t_list) + 1, self.n_tails)
 
         self.n_entities = max(self.n_heads, self.n_tails)
-        if self.args.use_num_lit:
-            self.n_num_embed = max(list(self.numeric_embed)) + 1
-
-        if self.args.use_txt_lit:
-            self.n_txt_embed = max(list(self.text_embed)) + 1
-
-        if self.args.use_num_lit and self.n_entities < self.n_num_embed:
-            self.n_entities = self.n_num_embed
-        elif self.args.use_txt_lit and self.n_entities < self.n_txt_embed:
-            self.n_entities = self.n_txt_embed
 
         self.n_head_tail = self.n_entities
 
         self.h_list = torch.LongTensor(h_list)
         self.t_list = torch.LongTensor(t_list)
         self.r_list = torch.LongTensor(r_list)
-
-    def embed_num_literal(self):
-        if len(list(self.numeric_embed)) == 0:
-            return
-        self.num_embedding_table = torch.zeros((self.n_entities, self.numeric_dim), device=self.device, dtype=torch.float32)
-        for item in self.numeric_embed:
-            self.num_embedding_table[item] = torch.tensor(self.numeric_embed[item], device=self.device, dtype=torch.float32)
-
-    def embed_txt_literal(self):
-        if len(list(self.text_embed)) == 0:
-            return
-        self.text_embedding_table = torch.zeros((self.n_entities, self.text_dim), device=self.device, dtype=torch.float32)
-        for item in self.text_embed:
-            self.text_embedding_table[item] = torch.tensor(self.text_embed[item], device=self.device, dtype=torch.float32)
-
-    def convert_coo2tensor(self, coo):
-        values = coo.data
-        indices = np.vstack((coo.row, coo.col))
-
-        i = torch.LongTensor(indices)
-        v = torch.FloatTensor(values)
-        shape = coo.shape
-        return torch.sparse.FloatTensor(i, v, torch.Size(shape))
-
-    def create_adjacency_dict(self):
-        self.adjacency_dict = {}
-        val_count = 0
-        for r, ht_list in self.train_relation_dict.items():
-            rows = [e[0] for e in ht_list]
-            cols = [e[1] for e in ht_list]
-
-            vals = [1] * len(rows)
-            val_count += len(rows)
-            adj = sp.coo_matrix((vals, (rows, cols)), shape=(
-                self.n_head_tail, self.n_head_tail))
-            self.adjacency_dict[r] = adj
-
-    def create_laplacian_dict(self):
-        def symmetric_norm_lap(adj):
-            rowsum = np.array(adj.sum(axis=1))
-
-            d_inv_sqrt = np.power(rowsum, -0.5).flatten()
-            d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0
-            d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
-
-            norm_adj = d_mat_inv_sqrt.dot(adj).dot(d_mat_inv_sqrt)
-            return norm_adj.tocoo()
-
-        def random_walk_norm_lap(adj):
-            rowsum = np.array(adj.sum(axis=1))
-
-            d_inv = np.power(rowsum, -1.0).flatten()
-            d_inv[np.isinf(d_inv)] = 0
-            d_mat_inv = sp.diags(d_inv)
-
-            norm_adj = d_mat_inv.dot(adj)
-            return norm_adj.tocoo()
-
-        if self.laplacian_type == 'symmetric':
-            norm_lap_func = symmetric_norm_lap
-        elif self.laplacian_type == 'random-walk':
-            norm_lap_func = random_walk_norm_lap
-        else:
-            raise NotImplementedError
-
-        self.laplacian_dict = {}
-        for r, adj in self.adjacency_dict.items():
-            self.laplacian_dict[r] = norm_lap_func(adj)
-
-        A_in = sum(self.laplacian_dict.values())
-        self.A_in = self.convert_coo2tensor(A_in.tocoo())
 
     def print_info(self, logging):
         logging.info('Total training heads:           %d' % self.n_heads)

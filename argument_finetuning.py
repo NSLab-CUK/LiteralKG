@@ -7,7 +7,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=2022,
                         help='Random seed.')
 
-    parser.add_argument('--data_name', nargs='?', default='Balance_800',
+    parser.add_argument('--data_name', nargs='?', default='Balance_100',
                         help='Choose a dataset')
     parser.add_argument('--data_dir', nargs='?', default='data/',
                         help='Input data path.')
@@ -18,7 +18,8 @@ def parse_args():
                         help='Path of learned embeddings.')
     parser.add_argument('--pretrain_model', nargs='?', default='pre-training_model_epoch',
                         help='Path of stored model.')
-    parser.add_argument('--pretrain_epoch', type=int, default=100,
+    
+    parser.add_argument('--pretrain_epoch', type=int, default=99,
                         help='Path of stored model.')
 
     parser.add_argument('--fine_tuning_batch_size', type=int, default=2048,
@@ -37,7 +38,7 @@ def parse_args():
                         help='head / entity Embedding size.')
     parser.add_argument('--relation_dim', type=int, default=300,
                         help='Relation Embedding size.')
-    parser.add_argument('--scale_gat_dim', type=int, default=256,
+    parser.add_argument('--scale_gat_dim', type=int, default=300,
                         help='Scale gat concatenation.')
     parser.add_argument('--num_lit_dim', type=int, default=2,
                         help='Numerical Literal Embedding size.')
@@ -51,13 +52,13 @@ def parse_args():
 
     parser.add_argument('--laplacian_type', type=str, default='random-walk',
                         help='Specify the type of the adjacency (laplacian) matrix from {symmetric, random-walk}.')
-    parser.add_argument('--aggregation_type', type=str, default='bi-interaction',
+    parser.add_argument('--aggregation_type', type=str, default='gcn',
                         help='Specify the type of the aggregation layer from {gcn, graphsage, bi-interaction, gin}.')
     parser.add_argument('--conv_dim_list', nargs='?', default='[32, 32, 32, 32, 32, 32, 32, 32, 32]',
                         help='Output sizes of every aggregation layer.')
     parser.add_argument('--conv_dim', type=int, default=32,
                         help='Output sizes of every aggregation layer.')
-    parser.add_argument('--n_conv_layers', type=int, default=8,
+    parser.add_argument('--n_conv_layers', type=int, default=1,
                         help='Output sizes of every aggregation layer.')
     parser.add_argument('--mess_dropout_list', nargs='?', default='[0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]',
                         help='Dropout probability w.r.t. message dropout for each deep layer. 0: no dropout.')
@@ -107,7 +108,7 @@ def parse_args():
     parser.add_argument('--prediction_dict_file', nargs='?', default='disease_dict.pickle',
                         help='Disease dictionary file')
 
-    parser.add_argument('--use_residual', type=bool, default=True,
+    parser.add_argument('--use_residual', type=bool, default=False,
                         help='Use residual connection.')
 
     parser.add_argument('--use_parallel_gpu', type=bool, default=False,
@@ -128,7 +129,7 @@ def parse_args():
 
     args.data_name = args.data_name.replace("'", "")
 
-    save_dir = 'trained_model/LiteralKG/{}/embed-dim{}_relation-dim{}_{}_n-layers{}_gat{}_conv{}_bs{}_num{}_txt{}_lr{}_dropout{}_pretrain0/{}/'.format(
+    save_dir = 'trained_model/LiteralKG/{}/embed-dim{}_relation-dim{}_{}_n-layers{}_gat{}_conv{}_bs{}_num{}_txt{}_lr{}_dropout{}_pretrain0_v5/{}/'.format(
         args.data_name, args.embed_dim, args.relation_dim, args.aggregation_type,
         args.n_conv_layers, args.scale_gat_dim, args.conv_dim, args.pre_training_batch_size, args.use_num_lit, args.use_txt_lit, args.lr, 
         args.mess_dropout, args.exp_name)

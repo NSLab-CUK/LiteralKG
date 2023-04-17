@@ -1,8 +1,8 @@
 import torch
 import numpy as np
-from dataloader import DataLoader
+from dataloader_bce import DataLoader
 from time import time
-from model import LiteralKG
+from model_bce import LiteralKG
 import pandas as pd
 
 from argument_test import parse_args
@@ -23,11 +23,16 @@ def test_model(args):
     model = LiteralKG(args, data.n_entities,
                  data.n_relations, data.A_in, data.num_embedding_table, data.text_embedding_table)
 
-    model = load_model(model, args.pretrain_model_path)
+    model = load_model(model, args.finetune_model_path)
     model.to(device)
     time1 = time()
 
-    prediction_scores, metrics_dict = evaluate(model, data.test_head_dict, data.test_batch_size, data.prediction_tail_ids, device, neg_rate=args.test_neg_rate)
+
+    test_heads = data.test_data_heads
+    test_tails = data.test_data_tails
+    test_labels = data.test_data_labels
+
+    prediction_scores, metrics_dict = evaluate(model, test_heads, test_tails, test_labels, device)
 
     metrics_str = 'Running test: Total Time {:.1f}s | Accuracy [{:.4f}], Precision [{:.4f}], Recall [{:.4f}], F1 [{:.4f}]'.format(
         time() - time1, metrics_dict['accuracy'], metrics_dict['precision'], metrics_dict['recall'], metrics_dict['f1'])
@@ -40,7 +45,7 @@ def test_model(args):
     temp_metrics_df = pd.DataFrame(data=[{"metrics": metrics_str}])
     temp_metrics_df.to_csv(
         args.save_dir + '/test_results.tsv', sep='\t', index=False)
-        
+
     np.save(args.save_dir + 'prediction_scores.npy', prediction_scores)
     print(metrics_str)
 

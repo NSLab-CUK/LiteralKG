@@ -101,6 +101,15 @@ def run_finetuning(filename, index, device):
 
     os.system(cmd)
 
+def run_finetuning_without_pretraining(filename, index, device):
+    data = pd.read_excel(filename)
+
+    cmd = f"python main_without_pretraining.py --aggregation_type {data['Aggregator'][index]} --n_conv_layers {data['Number Layers'][index]} --lr {data['Learning Rate'][index]} --mess_dropout {data['Dropout'][index]} --conv_dim {data['Convolutional Dim'][index]} --pre_training_batch_size {data['Batch Size'][index]} --fine_tuning_batch_size {data['Batch Size'][index]} --evaluation_row {index} --device {device} --evaluation_file {filename}"
+
+    print(f"Running fine tuning - {index} - {cmd}")
+
+    os.system(cmd)
+
 
 def run_testing(filename, index, device):
     data = pd.read_excel(filename)
@@ -111,3 +120,39 @@ def run_testing(filename, index, device):
 
     os.system(cmd)
 
+def run_testing_without_pretraining(filename, index, device):
+    data = pd.read_excel(filename)
+
+    cmd = f"python test_without_pretraining.py --aggregation_type {data['Aggregator'][index]} --n_conv_layers {data['Number Layers'][index]} --lr {data['Learning Rate'][index]} --mess_dropout {data['Dropout'][index]} --conv_dim {data['Convolutional Dim'][index]} --pre_training_batch_size {data['Batch Size'][index]} --fine_tuning_batch_size {data['Batch Size'][index]} --model_epoch {data['Best Finetune'][index]} --evaluation_row {index} --device {device} --evaluation_file {filename}"
+
+    print(f"Running test - {index} - {cmd}")
+
+    os.system(cmd)
+
+
+def evaluate(model, head_ids, tail_ids, labels, device):
+    model.eval()
+
+    head_ids = head_ids.to(device)
+    tail_ids = tail_ids.to(device)
+
+    #calculate output
+    prediction_scores = []
+    metric_names = ['accuracy', 'precision', 'recall', 'f1']
+    metrics_dict = {m: [] for m in metric_names}
+
+    with torch.no_grad():
+        # (n_batch_heads, n_tails)
+        scores = model(head_ids, tail_ids, device=device, mode='mlp').reshape(-1)
+        scores = scores.round()
+
+    scores = scores.cpu()
+
+    batch_metrics = calc_metrics(scores, labels)
+
+    for m in metric_names:
+        metrics_dict[m].append(batch_metrics[m])
+
+    for m in metric_names:
+        metrics_dict[m] = np.array(metrics_dict[m]).mean()
+    return prediction_scores, metrics_dict

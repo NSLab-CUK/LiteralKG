@@ -9,6 +9,8 @@ import scipy.sparse as sp
 import pickle
 import random
 import time
+
+
 # from openke.module.model import TransR
 
 
@@ -46,19 +48,21 @@ class DataLoaderBase(object):
         self.pre_training_neg_rate = args.pre_training_neg_rate
         self.fine_tuning_neg_rate = args.fine_tuning_neg_rate
 
-
-        self.train_file = os.path.join(self.data_dir, 'prediction_train.txt')
+        self.prediction_train_file = os.path.join(self.data_dir, 'prediction_train.txt')
         self.test_file = os.path.join(self.data_dir, 'prediction_test.txt')
         self.val_file = os.path.join(self.data_dir, 'prediction_val.txt')
-        
-        self.train_data_heads, self.train_data_tails, self.train_data_labels = self.load_prediction_data_with_label(self.train_file)
-        self.val_data_heads, self.val_data_tails, self.val_data_labels = self.load_prediction_data_with_label(self.val_file)
-        self.test_data_heads, self.test_data_tails, self.test_data_labels = self.load_prediction_data_with_label(self.test_file)        
+
+        self.train_data_heads, self.train_data_tails, self.train_data_labels = self.load_prediction_data_with_label(
+            self.prediction_train_file)
+        self.val_data_heads, self.val_data_tails, self.val_data_labels = self.load_prediction_data_with_label(
+            self.val_file)
+        self.test_data_heads, self.test_data_tails, self.test_data_labels = self.load_prediction_data_with_label(
+            self.test_file)
 
         self.prediction_train_data, head_dict = self.load_prediction_data(
             self.train_file)
-        self.train_head_dict = dict(list(head_dict.items())[:int(args.train_data_rate*len(head_dict))])
-        self.val_head_dict = dict(list(head_dict.items())[int(args.train_data_rate*len(head_dict)):])
+        self.train_head_dict = dict(list(head_dict.items())[:int(args.train_data_rate * len(head_dict))])
+        self.val_head_dict = dict(list(head_dict.items())[int(args.train_data_rate * len(head_dict)):])
         self.prediction_test_data, self.test_head_dict = self.load_prediction_data(self.test_file)
         self.analize_prediction()
 
@@ -116,9 +120,9 @@ class DataLoaderBase(object):
             max_value = 0
             dict_attr = {}
             for l in lines:
-                
+
                 data = l.split("\t")
-                
+
                 if (len(data) > 1):
                     value = float(data[1].strip("\n"))
                     dict_attr[int(data[0])] = value + 1
@@ -127,7 +131,7 @@ class DataLoaderBase(object):
 
             for item in dict_attr:
                 num_arr = np.zeros(self.numeric_dim)
-                if(max_value != 0):
+                if (max_value != 0):
                     num_arr[count] = dict_attr[item] / max_value
                 if self.args.use_num_lit:
                     self.numeric_embed[item] = num_arr
@@ -147,7 +151,7 @@ class DataLoaderBase(object):
                 for item in data:
                     if self.args.use_num_lit:
                         self.numeric_embed[item] = np.zeros(self.numeric_dim)
-                        
+
                     if self.args.use_txt_lit:
                         self.text_embed[item] = data[item]
 
@@ -185,7 +189,7 @@ class DataLoaderBase(object):
 
     def load_graph(self, filename):
         graph_data = pd.read_csv(filename, sep=' ', names=[
-                              'h', 'r', 't'], engine='python')
+            'h', 'r', 't'], engine='python')
         graph_data = graph_data.drop_duplicates()
         return graph_data
 
@@ -222,7 +226,7 @@ class DataLoaderBase(object):
         exist_heads = list(head_dict)
 
         batch_size = int(batch_size / self.fine_tuning_neg_rate)
-        
+
         if batch_size <= len(exist_heads):
             batch_head = random.sample(exist_heads, batch_size)
         else:
@@ -342,11 +346,12 @@ class DataLoaderBase(object):
     #     assert self.head_pre_embed.shape[1] == self.args.embed_dim
     #     assert self.tail_pre_embed.shape[1] == self.args.embed_dim
 
+
 class DataLoader(DataLoaderBase):
 
     def __init__(self, args, logging):
         super().__init__(args, logging)
-        self.fine_tuning_batch_size = int(args.fine_tuning_batch_size /  self.fine_tuning_neg_rate)
+        self.fine_tuning_batch_size = int(args.fine_tuning_batch_size / self.fine_tuning_neg_rate)
         self.pre_training_batch_size = int(args.pre_training_batch_size / self.pre_training_neg_rate)
         self.test_batch_size = args.test_batch_size
 
@@ -360,11 +365,9 @@ class DataLoader(DataLoaderBase):
         self.embed_txt_literal()
         self.print_info(logging)
 
-
         self.laplacian_type = args.laplacian_type
         self.create_adjacency_dict()
         self.create_laplacian_dict()
-
 
     def construct_data(self, graph_data):
         # Removed addition of inverse
@@ -426,16 +429,20 @@ class DataLoader(DataLoaderBase):
     def embed_num_literal(self):
         if len(list(self.numeric_embed)) == 0:
             return
-        self.num_embedding_table = torch.zeros((self.n_entities, self.numeric_dim), device=self.device, dtype=torch.float32)
+        self.num_embedding_table = torch.zeros((self.n_entities, self.numeric_dim), device=self.device,
+                                               dtype=torch.float32)
         for item in self.numeric_embed:
-            self.num_embedding_table[item] = torch.tensor(self.numeric_embed[item], device=self.device, dtype=torch.float32)
+            self.num_embedding_table[item] = torch.tensor(self.numeric_embed[item], device=self.device,
+                                                          dtype=torch.float32)
 
     def embed_txt_literal(self):
         if len(list(self.text_embed)) == 0:
             return
-        self.text_embedding_table = torch.zeros((self.n_entities, self.text_dim), device=self.device, dtype=torch.float32)
+        self.text_embedding_table = torch.zeros((self.n_entities, self.text_dim), device=self.device,
+                                                dtype=torch.float32)
         for item in self.text_embed:
-            self.text_embedding_table[item] = torch.tensor(self.text_embed[item], device=self.device, dtype=torch.float32)
+            self.text_embedding_table[item] = torch.tensor(self.text_embed[item], device=self.device,
+                                                           dtype=torch.float32)
 
     def convert_coo2tensor(self, coo):
         values = coo.data

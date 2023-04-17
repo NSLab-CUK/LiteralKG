@@ -1,11 +1,11 @@
 import torch
 import numpy as np
 import random
-from dataloader import DataLoader
+from dataloader_bce import DataLoader
 import torch.optim as optim
 from tqdm import tqdm
 from time import time
-from model import LiteralKG
+from model_bce import LiteralKG
 import sys
 import pandas as pd
 from torch.utils.tensorboard import SummaryWriter
@@ -101,7 +101,6 @@ def pre_training_train(model, data, optimizer, device, args, writer):
                 epoch_sampling_data_dict, data.pre_training_batch_size, list(data.training_tails))
             kg_batch_head = kg_batch_head.to(device)
             kg_batch_relation = kg_batch_relation.to(device)
-            print(kg_batch_relation)
             kg_batch_pos_tail = kg_batch_pos_tail.to(device)
             kg_batch_neg_tail = kg_batch_neg_tail.to(device)
 

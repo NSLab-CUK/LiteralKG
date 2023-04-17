@@ -5,7 +5,7 @@ from time import time
 from model import LiteralKG
 import pandas as pd
 
-from argument_test import parse_args
+from argument_test_without_pretraining import parse_args
 
 
 from utils.log_utils import *
