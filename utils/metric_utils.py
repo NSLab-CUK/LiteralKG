@@ -91,30 +91,30 @@ def calc_accuracy(y_pred=None, y_true=None):
             num_correct += 1
     return num_correct / len(y_true)
 
-def calc_precision(y_pred=None, y_true=None):
-    TP = 0
-    FP = 0
-    for i in range(len(y_pred)):
-        if y_true[i] == 1:
-            if y_pred[i] == 1:
-                TP += 1
-            else:
-                FP += 1
-    if TP + FP == 0:
-        return 0
-    return TP / (TP + FP)
-
 def calc_recall(y_pred=None, y_true=None):
     TP = 0
     FN = 0
     for i in range(len(y_pred)):
-        if y_true[i] == 1 and y_pred[i] == 1:
+        if y_pred[i] == 1 and y_true[i] == 1:
             TP += 1
-        if y_true[i] == 0 and y_pred[i] == 1:
+        if y_pred[i] == 0 and y_true[i] == 1:
             FN += 1
+
     if TP + FN == 0:
         return 0
     return TP / (TP + FN)
+
+def calc_precision(y_pred=None, y_true=None):
+    TP = 0
+    FP = 0
+    for i in range(len(y_pred)):
+        if y_true[i] == 1 and y_pred[i] == 1:
+            TP += 1
+        if y_true[i] == 0 and y_pred[i] == 1:
+            FP += 1
+    if TP + FP == 0:
+        return 0
+    return TP / (TP + FP)
 
 def calc_f1(pre, rec):
     if pre + rec > 0:
