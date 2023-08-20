@@ -33,3 +33,20 @@ LiteralKG is a novel Attributed Knowledge Graph Embedding Model developed by NS 
 ### To build model:
 
 - Running `python index.py`
+
+
+## Contributors
+
+<a href="https://github.com/NSLab-CUK/LiteralKG/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=NSLab-CUK/LiteralKG" />
+</a>
+
+
+
+<br>
+
+***
+
+<a href="https://nslab-cuk.github.io/"><img src="https://github.com/NSLab-CUK/NSLab-CUK/raw/main/Logo_Dual_Wide.png"/></a>
+
+***
