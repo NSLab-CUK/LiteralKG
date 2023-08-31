@@ -28,7 +28,7 @@ Over the past few years, Knowledge Graph (KG) embedding has been used to benefit
 <br>
 
 <p align="center">
-  <img src="./outputs/model.png" alt="LiteralKG Architecture" width="800">
+  <img src="./outputs/model.png" alt="LiteralKG Architecture" width="700">
   <br>
   <b></b> The overall architecture of LiteralKG.
 </p>
