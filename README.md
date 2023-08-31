@@ -35,7 +35,7 @@ Over the past few years, Knowledge Graph (KG) embedding has been used to benefit
 
 ## 2. Reproducibility
 
-### Setup environment for running:
+#### Setup environment for running:
 
 - Running: `python -m venv LiteralKG`
 
@@ -67,8 +67,8 @@ Over the past few years, Knowledge Graph (KG) embedding has been used to benefit
 Please cite our [paper](https://arxiv.org/abs/2308.09517) if you find *Literal* useful in your work:
 ```
 @misc{hoang2023ugt,
-      title={Transitivity-Preserving Graph Representation Learning for Bridging Local Connectivity and Role-based Similarity}, 
-      author={Van Thuy Hoang and O-Joun Lee},
+      title={Companion Animal Disease Diagnostics based on Literal-aware Medical Knowledge Graph Representation Learning}, 
+      author={Van Thuy Hoang, Sang Thanh Nguyen, Sangmyeong Lee, Jooho Lee, Luong Vuong Nguyen, and O-Joun Lee},
       year={2023},
       eprint={2308.09517},
       archivePrefix={arXiv},
