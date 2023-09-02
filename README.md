@@ -79,7 +79,7 @@ Please cite our [paper](https://arxiv.org/abs/2308.09517) if you find *Literal* 
 ## 5. Contributors
 
 <a href="https://github.com/NSLab-CUK/LiteralKG/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=NSLab-CUK/Unified-Graph-Transformer" />
+  <img src="https://contrib.rocks/image?repo=NSLab-CUK/LiteralKG" />
 </a>
 
 
