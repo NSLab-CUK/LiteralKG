@@ -58,7 +58,7 @@ Over the past few years, Knowledge Graph (KG) embedding has been used to benefit
 :page_with_curl: Paper [on arXiv](https://arxiv.org/abs/2309.03219): 
 * [![arXiv](https://img.shields.io/badge/arXiv-2308.09517-b31b1b?style=flat-square&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2308.09517) 
 
-:pencil: Blog [on Network Science Lab](https://nslab-cuk.github.io/2023/08/17/UGT/): 
+:pencil: Blog [on Network Science Lab](https://nslab-cuk.github.io/2023/08/30/LiteralKG/): 
 * [![Web](https://img.shields.io/badge/NS@CUK-Post-0C2E86?style=flat-square&logo=jekyll&logoColor=FFFFFF)](https://nslab-cuk.github.io/2023/08/17/UGT/)
 
 
