@@ -1,4 +1,4 @@
-# LiteralKG   - [Paper](https://arxiv.org/abs/2308.09517)
+# LiteralKG   - [Paper](https://arxiv.org/abs/2309.03219)
 **LiteralKG**, a novel Knowledge Graph Embedding Model, specialises in fusing different types of Literal information and entity relations into unified representations, which benefit companion animal disease prediction.
 **LiteralKG** is developed by [NS Lab, CUK](https://nslab-cuk.github.io/) based on pure [PyTorch](https://github.com/pytorch/pytorch) backend.
 
@@ -55,7 +55,7 @@ Over the past few years, Knowledge Graph (KG) embedding has been used to benefit
 
 ## 3. Reference
 
-:page_with_curl: Paper [on arXiv](https://arxiv.org/): 
+:page_with_curl: Paper [on arXiv](https://arxiv.org/abs/2309.03219): 
 * [![arXiv](https://img.shields.io/badge/arXiv-2308.09517-b31b1b?style=flat-square&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2308.09517) 
 
 :pencil: Blog [on Network Science Lab](https://nslab-cuk.github.io/2023/08/17/UGT/): 
@@ -64,15 +64,15 @@ Over the past few years, Knowledge Graph (KG) embedding has been used to benefit
 
 ## 4. Citing LiteralKG
 
-Please cite our [paper](https://arxiv.org/abs/2308.09517) if you find *Literal* useful in your work:
+Please cite our [paper](https://arxiv.org/abs/2309.03219) if you find *Literal* useful in your work:
 ```
-@misc{hoang2023ugt,
+@misc{hoang2023companion,
       title={Companion Animal Disease Diagnostics based on Literal-aware Medical Knowledge Graph Representation Learning}, 
-      author={Van Thuy Hoang, Sang Thanh Nguyen, Sangmyeong Lee, Jooho Lee, Luong Vuong Nguyen, and O-Joun Lee},
+      author={Van Thuy Hoang and Sang Thanh Nguyen and Sangmyeong Lee and Jooho Lee and Luong Vuong Nguyen and O-Joun Lee},
       year={2023},
-      eprint={2308.09517},
+      eprint={2309.03219},
       archivePrefix={arXiv},
-      primaryClass={cs.LG}
+      primaryClass={cs.AI}
 }
 ```
 
