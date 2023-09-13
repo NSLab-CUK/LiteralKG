@@ -1,4 +1,5 @@
-# LiteralKG   - [Paper](https://arxiv.org/abs/2309.03219)
+# LiteralKG
+
 **LiteralKG**, a novel Knowledge Graph Embedding Model, specialises in fusing different types of Literal information and entity relations into unified representations, which benefit companion animal disease prediction.
 **LiteralKG** is developed by [NS Lab, CUK](https://nslab-cuk.github.io/) based on pure [PyTorch](https://github.com/pytorch/pytorch) backend.
 
