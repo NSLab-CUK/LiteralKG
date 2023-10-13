@@ -51,8 +51,9 @@ Over the past few years, Knowledge Graph (KG) embedding has been used to benefit
 
 #### To build model:
 
-- Running `python index.py`
+- Running `python main.py`
 
+There are large attribute features (.pickle files) that can be downloaded at [here](https://drive.google.com/drive/folders/1SyBfZsAfi5CojM6iwXfeOxiaes6YJGVT)
 
 ## 3. Reference
 
