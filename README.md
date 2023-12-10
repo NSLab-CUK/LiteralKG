@@ -57,11 +57,11 @@ There are large attribute features (.pickle files) that can be downloaded at [he
 
 ## 3. Reference
 
-:page_with_curl: Paper: 
+:page_with_curl: Paper
 * [![DOI](http://img.shields.io/:DOI-10.1109/ACCESS.2023.3324046-blue?style=flat-square)](https://doi.org/10.1109/ACCESS.2023.3324046)
 * [![arXiv](https://img.shields.io/badge/arXiv-2309.03219-b31b1b?style=flat-square&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2309.03219)
 
-:pencil: Blog [on Network Science Lab](https://nslab-cuk.github.io/2023/08/30/LiteralKG/): 
+:pencil: Blog [on Network Science Lab](https://nslab-cuk.github.io/2023/08/30/LiteralKG/)
 * [![Web](https://img.shields.io/badge/NS@CUK-Post-0C2E86?style=flat-square&logo=jekyll&logoColor=FFFFFF)](https://nslab-cuk.github.io/2023/08/30/LiteralKG/)
 
 
