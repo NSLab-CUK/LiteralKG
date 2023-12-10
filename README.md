@@ -57,7 +57,8 @@ There are large attribute features (.pickle files) that can be downloaded at [he
 
 ## 3. Reference
 
-:page_with_curl: Paper [on arXiv](https://arxiv.org/abs/2309.03219): 
+:page_with_curl: Paper: 
+* [![DOI](http://img.shields.io/:DOI-10.1109/ACCESS.2023.3324046-blue?style=flat-square)](https://doi.org/10.1109/ACCESS.2023.3324046)
 * [![arXiv](https://img.shields.io/badge/arXiv-2309.03219-b31b1b?style=flat-square&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2309.03219)
 
 :pencil: Blog [on Network Science Lab](https://nslab-cuk.github.io/2023/08/30/LiteralKG/): 
@@ -66,15 +67,18 @@ There are large attribute features (.pickle files) that can be downloaded at [he
 
 ## 4. Citing LiteralKG
 
-Please cite our [paper](https://arxiv.org/abs/2309.03219) if you find *Literal* useful in your work:
+Please cite our [paper](https://ieeexplore.ieee.org/abstract/document/10283810) if you find *Literal* useful in your work:
 ```
-@misc{hoang2023companion,
-      title={Companion Animal Disease Diagnostics based on Literal-aware Medical Knowledge Graph Representation Learning}, 
-      author={Van Thuy Hoang and Sang Thanh Nguyen and Sangmyeong Lee and Jooho Lee and Luong Vuong Nguyen and O-Joun Lee},
-      year={2023},
-      eprint={2309.03219},
-      archivePrefix={arXiv},
-      primaryClass={cs.AI}
+@Article{Hoang2023,
+  author  = {Van Thuy Hoang and Thanh Sang Nguyen and Sangmyeong Lee and Jooho Lee and Luong Vuong Nguyen and O-Joun Lee},
+  title   = {Companion Animal Disease Diagnostics Based on Literal-Aware Medical Knowledge Graph Representation Learning},
+  journal = {IEEE Access},
+  year    = {2023},
+  volume  = {11},
+  pages   = {114238--114249},
+  month   = oct,
+  issn    = {2169-3536},
+  doi     = {10.1109/ACCESS.2023.3324046},
 }
 ```
 
