@@ -1,0 +1,38 @@
+cff-version: 1.0.0
+date-released: 2023-10
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Hoang"
+  given-names: "Van Thuy"
+- family-names: "Nguyen"
+  given-names: "Sang Thanh"
+- family-names: "Lee"
+  given-names: "Sangmyeong"
+- family-names: "Lee"
+  given-names: "Jooho"
+- family-names: "Nguyen"
+  given-names: "Luong Vuong"
+- family-names: "Lee"
+  given-names: "O-Joun"
+title: "Companion Animal Disease Diagnostics based on Literal-aware Medical Knowledge Graph Representation Learning"
+url: "https://ieeexplore.ieee.org/document/10283810/"
+preferred-citation:
+  type: article
+  journal: "IEEE Access"
+  authors:
+    - family-names: "Hoang"
+      given-names: "Van Thuy"
+    - family-names: "Nguyen"
+      given-names: "Sang Thanh"
+    - family-names: "Lee"
+      given-names: "Sangmyeong"
+    - family-names: "Lee"
+      given-names: "Jooho"
+    - family-names: "Nguyen"
+      given-names: "Luong Vuong"
+    - family-names: "Lee"
+      given-names: "O-Joun"
+  title: "Companion Animal Disease Diagnostics based on Literal-aware Medical Knowledge Graph Representation Learning"
+  url: "https://ieeexplore.ieee.org/document/10283810/"
+  year: 2023
+  publisher: "IEEE"
